@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Surfacesense Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        #map { height: 90vh; width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>Surfacesense Map</h1>
+    <div id="location"></div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map with default location (Madison, WI)
+        const map = L.map('map').setView([43.0731, -89.4012], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let marker, circle;
+
+        // IP-based geolocation (works without HTTPS)
+        async function getLocation() {
+            const endpoint = 'http://ip-api.com/json/?fields=status,message,lat,lon';
+            try {
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                if (data.status === "success") {
+                    showPosition(data);
+                } else {
+                    document.getElementById('location').innerText = `Unable to retrieve location: ${data.message}`;
+                }
+            } catch (err) {
+                console.error("Error getting geolocation", err);
+            }
+        }
+
+        function showPosition(pos) {
+            const lat = pos.lat;
+            const lon = pos.lon;
+
+            document.getElementById('location').innerHTML = `Your location: <br>Latitude: ${lat}<br>Longitude: ${lon}`;
+
+            // Add marker and circle
+            marker = L.marker([lat, lon]).addTo(map).bindPopup("You are here!").openPopup();
+            circle = L.circle([lat, lon], { radius: 1000 }).addTo(map);
+
+            // Center map
+            map.setView([lat, lon], 13);
+        }
+
+        // Call getLocation on page
+        getLocation();
+
+        // Test connection to your EC2 server
+        fetch('/api/ping')
+        .then(res => res.json())
+        .then(data => console.log("Server responded:", data))
+        .catch(err => console.error("Ping failed:", err));
+
+        async function fetchSensorData() {
+            try {
+                const response = await fetch('/api/sensor-data');
+                const data = await response.json();
+
+                data.forEach(d => {
+                L.marker([d.latitude, d.longitude])
+                    .addTo(map)
+                    .bindPopup(`Time: ${d.recorded_at}<br>Alt: ${d.altitude}<br>Speed: ${d.speed}`);
+                });
+            } catch (err) {
+                console.error('Error fetching sensor data:', err);
+            }
+            }
+
+            // Call after map initialization
+            fetchSensorData();
+
+    </script>
+</body>
+</html>
+
+

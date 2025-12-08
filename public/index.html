@@ -13,6 +13,18 @@
     <div id="location"></div>
     <div id="map"></div>
 
+    <!-- Upload Button + Progress IU
+     -- file picker
+     -- progress bar
+     -- status message area
+     -- dedicated upload logic file -->
+    <h2>Upload Sensor File</h2>
+    <input type="file" id="fileInput" accept=".csv,.txt" />
+    <br><br>
+    <progress id="uploadProgress" value="0" max="100" style="width:300px; display:none;"></progress>
+    <div id="uploadStatus"></div>
+    <script src="upload.js"></script>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Initialize map with default location (Madison, WI)

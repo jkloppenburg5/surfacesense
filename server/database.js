@@ -21,6 +21,7 @@ module.exports = { pool };
 
 
 async function insertSensorRecord(r) {
+  console.log("insertSensorRecord called with:", r);
   try {
     const query = `
       INSERT INTO surface_sensor_data (
@@ -83,4 +84,5 @@ async function getSensorData(limit = 100) {
   }
 }
 
+console.log("database.js exports insertSensorRecord:", insertSensorRecord);
 module.exports = { insertSensorRecord, getSensorData };

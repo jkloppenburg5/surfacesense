@@ -14,6 +14,10 @@ const { checkGranularity } = require("./granularityCheck.js");
 const { parseCsvAndInsert } = require("./parsers/csvParser.js");
 console.log("parseCsvAndInsert:", parseCsvAndInsert);
 
+// --- NEW: add these at the top of server.js ---
+const axios = require('axios');
+const turf = require('@turf/turf');
+const { pool } = require('./database.js');   // needed for SQL query
 
 // Parse JSON bodies (required for POST /sensor)
 app.use(express.json());
@@ -88,5 +92,102 @@ console.log("REQ BODY:", req.body);
   } catch (err) {
       console.error("Upload failed:", err);
       res.status(500).json({ error: "Failed to process file" });
+  }
+});
+
+// ============================================================================
+// NEW ENDPOINT: Reconstructed Road-Aligned Route Segments
+// ============================================================================
+app.get('/routes/reconstructed', async (req, res) => {
+  try {
+    // 1️⃣ Load ALL sensor points ordered by time
+    const result = await pool.query(`
+      SELECT 
+        id,
+        recorded_at,
+        latitude,
+        longitude,
+        speed,
+        horizontal_accuracy
+      FROM surface_sensor_data
+      WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+      ORDER BY recorded_at ASC
+    `);
+
+    const pts = result.rows.map(r => ({
+      id: r.id,
+      t: new Date(r.recorded_at).getTime() / 1000,
+      lat: Number(r.latitude),
+      lon: Number(r.longitude),
+      speed: Number(r.speed),
+      hAcc: Number(r.horizontal_accuracy)
+    }));
+
+    if (pts.length < 2) {
+      return res.json({ segments: [] });
+    }
+
+    // 2️⃣ Split into segments when:
+    //    • Time gap > 10s
+    //    • Distance gap > 30m
+    let segments = [];
+    let current = [pts[0]];
+
+    for (let i = 1; i < pts.length; i++) {
+      const prev = current[current.length - 1];
+      const cur = pts[i];
+
+      const dt = cur.t - prev.t;
+      const dMeters = turf.distance(
+        [prev.lon, prev.lat],
+        [cur.lon, cur.lat],
+        { units: 'meters' }
+      );
+
+      if (dt > 10 || dMeters > 30) {
+        segments.push(current);
+        current = [cur];
+      } else {
+        current.push(cur);
+      }
+    }
+    segments.push(current);
+
+    // 3️⃣ Map-match each segment using OSRM demo server
+    async function matchSegment(seg) {
+      if (seg.length < 2) return null;
+
+      const coords = seg.map(p => `${p.lon},${p.lat}`).join(';');
+
+      const url = `http://router.project-osrm.org/match/v1/driving/${coords}?geometries=geojson&overview=full`;
+
+      try {
+        const r = await axios.get(url);
+        if (!r.data.matchings || r.data.matchings.length === 0) return null;
+
+        return r.data.matchings[0].geometry; // GeoJSON LineString
+      } catch (err) {
+        console.error("OSRM error:", err.message);
+        return null;
+      }
+    }
+
+    const matched = [];
+    for (const seg of segments) {
+      const geom = await matchSegment(seg);
+      matched.push({
+        raw_points: seg,
+        matched_line: geom
+      });
+    }
+
+    res.json({
+      count: matched.length,
+      segments: matched
+    });
+
+  } catch (err) {
+    console.error("❌ /routes/reconstructed error:", err);
+    res.status(500).json({ error: err.message });
   }
 });

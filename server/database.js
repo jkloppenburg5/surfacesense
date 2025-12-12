@@ -1,3 +1,5 @@
+// database.js //
+
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
@@ -17,7 +19,7 @@ const pool = new Pool({
   }
 });
 
-module.exports = { pool };
+// module.exports = { pool };
 
 
 async function insertSensorRecord(r) {
@@ -85,4 +87,4 @@ async function getSensorData(limit = 100) {
 }
 
 console.log("database.js exports insertSensorRecord:", insertSensorRecord);
-module.exports = { insertSensorRecord, getSensorData };
+module.exports = { pool, insertSensorRecord, getSensorData };

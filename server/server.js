@@ -19,6 +19,9 @@ const axios = require('axios');
 const turf = require('@turf/turf');
 const { pool } = require('./database.js');   // needed for SQL query
 
+// Connect Node → Python
+const { spawn } = require("child_process");
+
 // Parse JSON bodies (required for POST /sensor)
 app.use(express.json());
 
@@ -27,6 +30,57 @@ app.use(express.static('public'));
 
 // Enable CORS for development/testing
 app.use(cors());
+
+// // Helper for Python Classifier
+// function runPythonClassifier(points) {
+//   return new Promise((resolve, reject) => {
+//     const py = spawn("python3", ["classifier/classify_surface.py"]);
+
+//     let output = "";
+//     let error = "";
+
+//     py.stdout.on("data", d => output += d.toString());
+//     py.stderr.on("data", d => error += d.toString());
+
+//     py.on("close", code => {
+//       if (code !== 0) return reject(error);
+//       resolve(JSON.parse(output));
+//     });
+
+//     py.stdin.write(JSON.stringify({ data: points }));
+//     py.stdin.end();
+//   });
+// }
+
+function runPythonClassifier(points) {
+  return new Promise((resolve, reject) => {
+    const py = spawn("python3", ["classifier/classify_surface.py"]);
+
+    let output = "";
+    let error = "";
+
+    py.stdout.on("data", d => {
+      const s = d.toString();
+      console.log("🐍 PY STDOUT:", s);
+      output += s;
+    });
+
+    py.stderr.on("data", d => {
+      const s = d.toString();
+      console.error("🐍 PY STDERR:", s);
+      error += s;
+    });
+
+    py.on("close", code => {
+      console.log("🐍 PY EXIT CODE:", code);
+      if (code !== 0) return reject(error);
+      resolve(JSON.parse(output));
+    });
+
+    py.stdin.write(JSON.stringify({ data: points }));
+    py.stdin.end();
+  });
+}
 
 // Simple hello route
 app.get('/hello', (req, res) => {
@@ -60,11 +114,6 @@ app.post('/sensor', async (req, res) => {
     console.error('DB insert error:', err);
     res.status(500).json({ error: 'db insert failed' });
   }
-});
-
-// Single server listener (IMPORTANT)
-app.listen(PORT, () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
 
 // Pre-upload granularity check
@@ -190,4 +239,42 @@ app.get('/routes/reconstructed', async (req, res) => {
     console.error("❌ /routes/reconstructed error:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// New API route to classify entire ride
+app.get('/api/classify', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        EXTRACT(EPOCH FROM recorded_at) AS t,
+        x, y, z,
+        latitude AS lat,
+        longitude AS lon
+      FROM surface_sensor_data
+      WHERE x IS NOT NULL AND y IS NOT NULL AND z IS NOT NULL
+      ORDER BY recorded_at ASC
+    `);
+
+    const points = result.rows.map(r => ({
+      t: Number(r.t),
+      x: Number(r.x),
+      y: Number(r.y),
+      z: Number(r.z),
+      lat: Number(r.lat),
+      lon: Number(r.lon)
+    }));
+
+    const segments = await runPythonClassifier(points);
+
+    res.json({ count: segments.length, segments });
+
+  } catch (err) {
+    console.error("❌ Classification error:", err);
+    res.status(500).json({ error: "Classification failed" });
+  }
+});
+
+// Single server listener (IMPORTANT)
+app.listen(PORT, () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });

@@ -1,17 +1,19 @@
 # surfacesense
 Surfacesense - Where Every Road Tells a Story
 
-Surfaceense is a sensor-driven platform for mapping road surface conditions using vibration signatures and GPS data.
+SurfaceSense is a sensor-driven platform for mapping road surface conditions using vibration physics and GPS data.
 
-Aimed at cyclists, runners, planners, and researchers, the app provides an integrated platform for identifying surface conditions along a route and improving the accuracy of existing maps.
+Designed for cyclists, runners, planners, and researchers, SurfaceSense identifies the surfaces you actually traveled and improves the accuracy of existing maps—using measured vibration signatures rather than assumptions or map tags alone.
 
-Users can upload GPS files alongside high-fidelity accelerometer data. SurfaceSense analyzes these datasets using signal-processing techniques—including RMS acceleration, variance, and peak-to-peak amplitude—to detect vibration patterns associated with specific surface types. This analysis distinguishes between asphalt, gravel, dirt, cobblestones, and other surfaces, producing a geospatially anchored classification for each road segment. By connecting accelerometer signatures to precise location data, the system offers an objective, data-driven representation of surface composition.
+Users upload GPS tracks alongside high-frequency accelerometer data collected from a smartphone or sensor device. SurfaceSense analyzes these signals using modern signal-processing techniques, including time-windowed spectral analysis, short-time Fourier transforms (STFT), and log band-power ratios. By examining how vibration energy is distributed across frequency bands over time—and enforcing persistence and hysteresis to avoid transient misclassifications—the system reliably distinguishes between smooth pavement and rougher surfaces such as gravel, dirt, cobblestones, and trails.
 
-To support refinement and verification, SurfaceSense includes an interactive map interface that enables users to review and correct classifications. Clicking on a segment highlights its full length and places adjustable pins at its boundaries, allowing users to modify surface labels with precision. This combination of automated inference and community validation ensures that surface data improves continuously and becomes more reliable over time.
+Rather than relying on raw amplitude or simple variance, SurfaceSense focuses on relative frequency content. Low-frequency motion reflects pedaling and body movement, while higher-frequency energy reveals surface texture. Comparing these bands in a normalized, logarithmic space allows the classifier to remain robust across different mounting orientations, speeds, and riding styles.
 
-Visualization features further enhance usability. Segments are color-coded to distinguish paved from unpaved surfaces, supporting intuitive interpretation. Because the system integrates sensor analytics with user feedback, it produces a richer and more accurate picture of real-world surface conditions than GPS data alone.
+Each classified window is anchored to precise geographic coordinates, producing a spatially continuous surface map composed of short, data-driven segments. These segments are rendered on an interactive map where users can explore results in detail, inspect underlying metrics, and verify classifications in context.
 
-The benefits extend from individual route planning to broader infrastructure insights. Athletes can choose optimal paths; commuters can avoid hazardous areas; municipalities can leverage data to preserve historically significant rustic roadways.  With its integration of sensor analytics, geospatial mapping, and collaborative validation, SurfaceSense transforms raw movement data into meaningful environmental intelligence, offering a robust tool for navigating and understanding varied terrain.
+To support refinement and trust, SurfaceSense includes a visual review workflow. Surface segments are color-coded by surface type and can be inspected individually, allowing users to identify outliers, transitions, or ambiguous zones. This combination of automated inference and human validation ensures that surface data improves over time and remains grounded in real-world experience.
+
+The result is a richer understanding of the roads and paths we move across. Athletes can choose routes that match their equipment and goals, commuters can avoid uncomfortable or hazardous surfaces, and planners can gain insight into how infrastructure is actually experienced on the ground. By uniting vibration analytics, geospatial mapping, and iterative validation, SurfaceSense transforms raw sensor data into meaningful environmental intelligence—revealing the true character of the surfaces beneath our wheels and feet.
 
 
 

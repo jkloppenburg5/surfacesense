@@ -1,7 +1,7 @@
 # surfacesense
-surfacesense - Where Every Road Tells a Story
+Surfacesense - Where Every Road Tells a Story
 
-surfaceSense is a sensor-driven platform for mapping road surface conditions using vibration physics and GPS data.
+SurfaceSense is a sensor-driven platform for mapping road surface conditions using vibration physics and GPS data.
 
 Designed for cyclists, runners, planners, and researchers, SurfaceSense identifies the surfaces you actually traveled and improves the accuracy of existing maps—using measured vibration signatures rather than assumptions or map tags alone.
 

@@ -4,7 +4,7 @@
 
 At a high level, it answers:
 
-> *“Based on vibration patterns, what surface was this route actually ridden on?”*
+> *“Based on vibration patterns, what surface did this route actually traverse?”*
 
 ---
 

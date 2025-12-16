@@ -100,4 +100,4 @@ Sensor Logs → Backend Processing → Interactive Map
 
 ---
 
-> *SurfaceSense turns raw smartphone sensor data into an interactive map that reveals what surfaces you actually rode—using vibration physics, not guesswork*
+> *SurfaceSense turns raw sensor data into an interactive map that reveals what surfaces you actually rode—using vibration physics, not guesswork*

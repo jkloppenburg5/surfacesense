@@ -13,3 +13,7 @@ Visualization features further enhance usability. Segments are color-coded to di
 
 The benefits extend from individual route planning to broader infrastructure insights. Athletes can choose optimal paths; commuters can avoid hazardous areas; municipalities can leverage data to preserve historically significant rustic roadways.  With its integration of sensor analytics, geospatial mapping, and collaborative validation, SurfaceSense transforms raw movement data into meaningful environmental intelligence, offering a robust tool for navigating and understanding varied terrain.
 
+
+
+
+If you’re interested in the internal architecture, data pipeline, or classifier design, see: [Developer README](README.DEVELOPER.md).

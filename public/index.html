@@ -1,100 +1,276 @@
 <!DOCTYPE html>
+<!--
+SURFACESENSE MAP - Sensor Data Visualization Platform
+
+ARCHITECTURE:
+• 3 Visualization Layers: Points, Routes, Surfaces
+• 2-Phase Upload: Validation → Full Upload
+• APIs: /api/sensor-data, /routes/reconstructed, /api/classify
+• Base Map: Esri World Imagery (maxZoom: 19)
+• Features: Geolocation, Progress Tracking, Layer Controls
+
+TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest
+
+<!DOCTYPE html>
+<!-- HTML5 document type declaration -->
 <html lang="en">
+<!-- Root HTML element with English language setting -->
 <head>
+    <!-- Document metadata section -->
     <meta charset="UTF-8">
+    <!-- Character encoding: UTF-8 for Unicode support -->
     <title>SurfaceSense Map</title>
+    <!-- Browser tab title -->
+    
+    <!-- Import Leaflet CSS for map styling -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
     <style>
-        #map { height: 90vh; width: 100%; }
+        /* Internal CSS styles */
+        #map { 
+            height: 90vh; /* Map takes 90% of viewport height */
+            width: 100%;  /* Full width of container */
+        }
     </style>
 </head>
 <body>
+    <!-- Main page content begins -->
     <h1>Surfacesense Map</h1>
+    <!-- Main page heading -->
+    
     <div id="location"></div>
+    <!-- Container to display user's geographic location -->
+    
     <div id="map"></div>
+    <!-- Container where the Leaflet map will be rendered -->
 
-    <!-- Upload Button + Progress IU
-     -- file picker
-     -- progress bar
-     -- status message area
-     -- dedicated upload logic file -->
+    <!-- Upload section for sensor data files -->
     <h2>Upload Sensor File</h2>
+    <!-- Section heading -->
+    
+    <!-- File input for CSV/TXT sensor data -->
     <input type="file" id="fileInput" accept=".csv,.txt" />
-    <br><br>
+    <!-- accept attribute restricts file types to CSV and text files -->
+    <br><br> <!-- Line breaks for spacing -->
+
+    <!-- Progress bar for upload tracking (hidden by default) -->
     <progress id="uploadProgress" value="0" max="100" style="width:300px; display:none;"></progress>
+    
+    <!-- Status messages for upload process -->
     <div id="uploadStatus"></div>
 
+    <!-- Button to trigger surface type visualization -->
     <button id="showSurfaceBtn">Show Surface Types</button>
-    <br><br>
+    <br><br> <!-- Spacing -->
 
+    <!-- External JavaScript for file upload functionality -->
     <script src="upload.js"></script>
 
+    <!-- Leaflet JavaScript library (mapping engine) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
+    <!-- Main application JavaScript -->
     <script>
+    // Wait for DOM to be fully loaded before executing
     document.addEventListener('DOMContentLoaded', () => {
 
         // --- Initialize Leaflet map ---
+        // Create map instance in 'map' div, centered on Madison, WI coordinates
         const map = L.map('map').setView([43.0731, -89.4012], 13);
+        // [latitude, longitude], zoom level 13
 
+        // Alternative: OpenStreetMap base layer (commented out)
         // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         //     attribution: '&copy; OpenStreetMap contributors'
         // }).addTo(map);
 
+        // Use Esri satellite imagery as base map layer
         L.tileLayer(
             "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             {
-                attribution:
-                "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
-                maxZoom: 19
+                attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
+                maxZoom: 19 // Maximum zoom level allowed
             }
         ).addTo(map);
 
-        let markerLayer = L.layerGroup().addTo(map);        // Layer for raw points
-        let reconstructedLinesLayer = L.geoJSON(null, {    // Layer for road-aligned lines
-            style: feature => ({
-                color: feature.properties.on_road ? '#2ecc71' : '#e74c3c',
-                weight: 4,
-                opacity: 0.9
-            }),
-            onEachFeature: function(feature, layer) {
-                const p = feature.properties || {};
-                const start = p.start_time || '';
-                const end = p.end_time || '';
-                const avgSpeed = p.avg_speed ? p.avg_speed.toFixed(2) : '';
-                const vibVar = p.vibration_variance ? p.vibration_variance.toFixed(4) : '';
-                layer.bindPopup(`
-                    <strong>Segment:</strong> ${start} → ${end}<br/>
-                    Avg speed: ${avgSpeed}<br/>
-                    Vibration variance: ${vibVar}<br/>
-                    On Road: ${p.on_road ? '✅' : '❌'}<br/>
-                    Points: ${p.point_count || 0}
-                `);
-                layer.on('mouseover', () => layer.openPopup());
-                layer.on('mouseout', () => layer.closePopup());
-            }
-        }).addTo(map);
+        // Create layer group for raw sensor point markers
+        let markerLayer = L.layerGroup().addTo(map);
+        
+        // // Create GeoJSON layer for road-aligned reconstructed lines
+        // let reconstructedLinesLayer = L.geoJSON(null, {
+        //     // Style function: green for on-road, red for off-road
+        //     style: feature => ({
+        //         color: feature.properties.on_road ? '#2ecc71' : '#e74c3c', // Green/Red
+        //         weight: 4,     // Line thickness
+        //         opacity: 0.9   // Line transparency
+        //     }),
+        //     // Define behavior for each line feature
+        //     onEachFeature: function(feature, layer) {
+        //         const p = feature.properties || {};
+        //         // Format timestamps
+        //         const start = p.start_time || '';
+        //         const end = p.end_time || '';
+        //         // Format numerical values
+        //         const avgSpeed = p.avg_speed ? p.avg_speed.toFixed(2) : '';
+        //         const vibVar = p.vibration_variance ? p.vibration_variance.toFixed(4) : '';
+                
+        //         // Create popup content with segment info
+        //         layer.bindPopup(`
+        //             <strong>Segment:</strong> ${start} → ${end}<br/>
+        //             Avg speed: ${avgSpeed}<br/>
+        //             Vibration variance: ${vibVar}<br/>
+        //             On Road: ${p.on_road ? '✅' : '❌'}<br/>
+        //             Points: ${p.point_count || 0}
+        //         `);
+                
+        //         // Show popup on hover
+        //         layer.on('mouseover', () => layer.openPopup());
+        //         layer.on('mouseout', () => layer.closePopup());
+        //     }
+        // }).addTo(map);
+
+        // Create layer for surface classification visualization
+        // const surfaceLayer = L.geoJSON(null, {
+        //     // Style: orange for gravel, blue for other surfaces
+        //     style: f => ({
+        //         color: f.properties.surface === "gravel" ? "orange" : "blue",
+        //         weight: 5,      // Thicker lines for visibility
+        //         opacity: 0.85   // Slightly transparent
+        //     }),
+        //     // Define popup for surface segments
+        //     onEachFeature: (feature, layer) => {
+        //         const p = feature.properties;
+        //         layer.bindPopup(`
+        //             <strong>Surface:</strong> ${p.surface}<br/>
+        //             <strong>Log Ratio:</strong> ${p.log_ratio.toFixed(2)}<br/>
+        //             P(1–3 Hz): ${p.p_1_3.toExponential(2)}<br/>
+        //             P(7–15 Hz): ${p.p_7_15.toExponential(2)}
+        //         `);
+        //     }
+        // }).addTo(map);
+
+        // const surfaceLayer = L.geoJSON(null, {
+        //     style: f => ({
+        //         color: f.properties.surface === "gravel" ? "orange" : "blue",
+        //         weight: 5,
+        //         opacity: 0.9
+        //     }),
+        //     onEachFeature: function (feature, layer) {
+        //         const p = feature.properties || {};
+
+        //         const fmt = (v, d = 2) =>
+        //             (v === undefined || v === null || isNaN(v))
+        //                 ? "—"
+        //                 : Number(v).toFixed(d);
+
+        //         layer.bindPopup(`
+        //             <strong>Surface:</strong> ${p.surface}<br/>
+
+        //             <hr style="margin:4px 0"/>
+
+        //             <strong>Log Ratio:</strong> ${fmt(p.log_ratio, 3)}<br/>
+        //             <strong>P(1–3 Hz):</strong> ${fmt(p.p_1_3)}<br/>
+        //             <strong>P(7–15 Hz):</strong> ${fmt(p.p_7_15)}<br/>
+
+        //             <hr style="margin:4px 0"/>
+
+        //             <strong>Start:</strong> ${p.start_time || "—"}<br/>
+        //             <strong>End:</strong> ${p.end_time || "—"}<br/>
+
+        //             <strong>Avg speed:</strong> ${fmt(p.avg_speed)} m/s<br/>
+        //             <strong>Horiz acc:</strong> ${fmt(p.hAcc)} m<br/>
+        //             <strong>Bearing acc:</strong> ${fmt(p.bearing_accuracy)} °<br/>
+        //         `);
+        //     }
+        // }).addTo(map);
 
         const surfaceLayer = L.geoJSON(null, {
             style: f => ({
                 color: f.properties.surface === "gravel" ? "orange" : "blue",
                 weight: 5,
-                opacity: 0.85
+                opacity: 0.9
             }),
             onEachFeature: (feature, layer) => {
-                const p = feature.properties;
+                const p = feature.properties || {};
+
+                const fmt = (v, d = 3) =>
+                    (v === undefined || v === null || isNaN(v))
+                        ? "—"
+                        : Number(v).toFixed(d);
 
                 layer.bindPopup(`
                     <strong>Surface:</strong> ${p.surface}<br/>
-                    <strong>Log Ratio:</strong> ${p.log_ratio.toFixed(2)}<br/>
-                    P(1–3 Hz): ${p.p_1_3.toExponential(2)}<br/>
-                    P(7–15 Hz): ${p.p_7_15.toExponential(2)}
+
+                    <hr/>
+
+                    <strong>Log Ratio:</strong> ${fmt(p.log_ratio)}<br/>
+                    <strong>P(1–3 Hz):</strong> ${fmt(p.p_1_3)}<br/>
+                    <strong>P(7–15 Hz):</strong> ${fmt(p.p_7_15)}<br/>
+
+                    <hr/>
+
+                    <strong>Start Lat/Lon:</strong><br/>
+                    ${fmt(p.start_lat, 6)}, ${fmt(p.start_lon, 6)}<br/>
+
+                    <strong>End Lat/Lon:</strong><br/>
+                    ${fmt(p.end_lat, 6)}, ${fmt(p.end_lon, 6)}<br/>
+
+                    <hr/>
+
+                    <strong>Start:</strong><br/>
+                    ${p.start_time || "—"}<br/>
+
+                    <strong>End:</strong><br/>
+                    ${p.end_time || "—"}
                 `);
             }
         }).addTo(map);
 
 
-        // --- NEW: Get user location ---
+        // --- LAYER TOGGLES ---
+        const layerToggle = L.control({ position: "topright" });
+
+        layerToggle.onAdd = function () {
+            const div = L.DomUtil.create("div", "leaflet-bar");
+            div.style.background = "white";
+            div.style.padding = "8px";
+            div.style.fontSize = "13px";
+
+            div.innerHTML = `
+                <label>
+                    <input type="checkbox" id="cb-surface" checked />
+                    Surface classification
+                </label><br/>
+                <label>
+                    <input type="checkbox" id="cb-points" checked />
+                    Raw GPS points
+                </label>
+            `;
+
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+        };
+
+        layerToggle.addTo(map);
+
+        document.getElementById("cb-surface").addEventListener("change", e => {
+            if (e.target.checked) {
+                map.addLayer(surfaceLayer);
+            } else {
+                map.removeLayer(surfaceLayer);
+            }
+        });
+
+        document.getElementById("cb-points").addEventListener("change", e => {
+            if (e.target.checked) {
+                map.addLayer(markerLayer);
+            } else {
+                map.removeLayer(markerLayer);
+            }
+        });
+
+
+        // Get user location using IP geolocation
         async function getLocation() {
             const endpoint = 'http://ip-api.com/json/?fields=status,message,lat,lon';
             try {
@@ -103,15 +279,21 @@
                 if (data.status === "success") {
                     const lat = data.lat;
                     const lon = data.lon;
+                    
+                    // Display location in HTML
                     document.getElementById('location').innerHTML = 
                         `Your location: <br>Latitude: ${lat}<br>Longitude: ${lon}`;
 
-                    // Add marker and circle
+                    // Add marker at user's location
                     L.marker([lat, lon]).addTo(map).bindPopup("You are here!").openPopup();
+                    
+                    // Add circle around location (1km radius)
                     L.circle([lat, lon], { radius: 1000 }).addTo(map);
 
+                    // Center map on user's location
                     map.setView([lat, lon], 13);
                 } else {
+                    // Handle API error
                     document.getElementById('location').innerText = 
                         `Unable to retrieve location: ${data.message}`;
                 }
@@ -119,16 +301,17 @@
                 console.error("Error getting geolocation", err);
             }
         }
-        getLocation();
+        getLocation(); // Execute location fetch
 
-        // --- FETCH RAW POINTS ---
+        // FETCH RAW POINTS from server API
         async function fetchSensorData() {
             try {
                 const response = await fetch('/api/sensor-data');
                 const data = await response.json();
 
-                markerLayer.clearLayers(); // Clear previous points
+                markerLayer.clearLayers(); // Remove previous points
 
+                // Create marker for each sensor reading
                 data.forEach(d => {
                     L.marker([d.latitude, d.longitude])
                     .bindPopup(`Time: ${d.recorded_at}<br>Alt: ${d.altitude}<br>Speed: ${d.speed}`)
@@ -139,53 +322,66 @@
             }
         }
 
-        // --- FETCH ROAD-ALIGNED POLYLINES ---
-        async function loadReconstructedRoutes() {
-            try {
-                const resp = await fetch('/routes/reconstructed');
-                if (!resp.ok) {
-                    console.error('Failed to fetch reconstructed routes', resp.statusText);
-                    return;
-                }
+        // // --- FETCH ROAD-ALIGNED POLYLINES from backend ---
+        // async function loadReconstructedRoutes() {
+        //     try {
+        //         const resp = await fetch('/routes/reconstructed');
+        //         if (!resp.ok) {
+        //             console.error('Failed to fetch reconstructed routes', resp.statusText);
+        //             return;
+        //         }
 
-                const data = await resp.json();
-                reconstructedLinesLayer.clearLayers();
+        //         const data = await resp.json();
+        //         reconstructedLinesLayer.clearLayers(); // Clear existing lines
 
-                data.segments.forEach(seg => {
-                    if (!seg.matched_line) return;
+        //         // Process each road segment
+        //         data.segments.forEach(seg => {
+        //             if (!seg.matched_line) return; // Skip if no geometry
 
-                    const startTime = seg.raw_points[0]?.t ? new Date(seg.raw_points[0].t*1000).toISOString() : '';
-                    const endTime = seg.raw_points[seg.raw_points.length-1]?.t ? new Date(seg.raw_points[seg.raw_points.length-1].t*1000).toISOString() : '';
-                    const avgSpeed = seg.raw_points.length ? (seg.raw_points.reduce((s,p)=>s+(p.speed||0),0)/seg.raw_points.length) : 0;
+        //             // Calculate timestamps from raw points
+        //             const startTime = seg.raw_points[0]?.t ? 
+        //                 new Date(seg.raw_points[0].t*1000).toISOString() : '';
+        //             const endTime = seg.raw_points[seg.raw_points.length-1]?.t ? 
+        //                 new Date(seg.raw_points[seg.raw_points.length-1].t*1000).toISOString() : '';
+                    
+        //             // Calculate average speed
+        //             const avgSpeed = seg.raw_points.length ? 
+        //                 (seg.raw_points.reduce((s,p)=>s+(p.speed||0),0)/seg.raw_points.length) : 0;
 
-                    const feature = {
-                        type: 'Feature',
-                        geometry: seg.matched_line,
-                        properties: {
-                            on_road: true, // assume matched = on-road
-                            start_time: startTime,
-                            end_time: endTime,
-                            avg_speed: avgSpeed,
-                            vibration_variance: 0,
-                            point_count: seg.raw_points.length
-                        }
-                    };
-                    reconstructedLinesLayer.addData(feature);
-                });
+        //             // Create GeoJSON feature
+        //             const feature = {
+        //                 type: 'Feature',
+        //                 geometry: seg.matched_line,
+        //                 properties: {
+        //                     on_road: true, // Assume matched = on-road
+        //                     start_time: startTime,
+        //                     end_time: endTime,
+        //                     avg_speed: avgSpeed,
+        //                     vibration_variance: 0, // Placeholder
+        //                     point_count: seg.raw_points.length
+        //                 }
+        //             };
+        //             reconstructedLinesLayer.addData(feature);
+        //         });
 
-                // Auto-fit map bounds to lines
-                const bounds = reconstructedLinesLayer.getBounds();
-                if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
+        //         // Auto-zoom to show all lines
+        //         const bounds = reconstructedLinesLayer.getBounds();
+        //         if (bounds.isValid()) map.fitBounds(bounds.pad(0.2)); // Add 20% padding
 
-            } catch (err) {
-                console.error('Error loading reconstructed routes:', err);
-            }
-        }
+        //     } catch (err) {
+        //         console.error('Error loading reconstructed routes:', err);
+        //     }
+        // }
+
+        // --- FETCH SURFACE CLASSIFICATION DATA ---
 
         async function loadSurfaceClassification() {
             try {
                 const resp = await fetch("/api/classify");
-                if (!resp.ok) return;
+                if (!resp.ok) {
+                    console.error("Failed to fetch classification", resp.statusText);
+                    return;
+                }
 
                 const data = await resp.json();
                 surfaceLayer.clearLayers();
@@ -202,66 +398,119 @@
                         },
                         properties: {
                             surface: seg.surface,
-                            log_ratio: seg.features.log_ratio,
-                            p_1_3: seg.features.p_1_3,
-                            p_7_15: seg.features.p_7_15
+
+                            log_ratio: seg.features?.log_ratio,
+                            p_1_3: seg.features?.p_1_3,
+                            p_7_15: seg.features?.p_7_15,
+
+                            start_lat: seg.start_lat,
+                            start_lon: seg.start_lon,
+                            end_lat: seg.end_lat,
+                            end_lon: seg.end_lon,
+
+                            start_time: new Date(seg.start_t * 1000).toISOString(),
+                            end_time: new Date(seg.end_t * 1000).toISOString()
                         }
                     };
 
                     surfaceLayer.addData(feature);
                 });
 
+                // 🔍 Auto-zoom to latest classification
+                const bounds = surfaceLayer.getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds.pad(0.2));
+                }
+
             } catch (err) {
                 console.error("Error loading surface classification:", err);
             }
         }
 
+        // async function loadSurfaceClassification() {
+        //     try {
+        //         const resp = await fetch("/api/classify");
+        //         if (!resp.ok) return; // Exit if request fails
 
-        // --- UI CONTROLS ---
-        const routeControl = L.control({position: 'topright'});
-        routeControl.onAdd = function(map) {
-            const div = L.DomUtil.create('div', 'route-controls leaflet-bar');
-            div.innerHTML = `
-                <label><input type="checkbox" id="cb-show-points"> Show Points</label><br/>
-                <label><input type="checkbox" id="cb-offroad-only"> Off-Road Only</label><br/>
-                <button id="btn-reload-routes">Reload Routes</button>
-            `;
-            L.DomEvent.disableClickPropagation(div);
-            return div;
-        };
-        routeControl.addTo(map);
+        //         const data = await resp.json();
+        //         surfaceLayer.clearLayers(); // Clear previous surface data
 
-        // --- Show/hide raw points ---
-        document.getElementById('cb-show-points').addEventListener('change', e => {
-            if (e.target.checked) map.addLayer(markerLayer);
-            else map.removeLayer(markerLayer);
-        });
+        //         // Create line segments for each classified surface
+        //         data.segments.forEach(seg => {
+        //             const feature = {
+        //                 type: "Feature",
+        //                 geometry: {
+        //                     type: "LineString",
+        //                     coordinates: [
+        //                         [seg.start_lon, seg.start_lat], // Start point
+        //                         [seg.end_lon, seg.end_lat]      // End point
+        //                     ]
+        //                 },
+        //                 properties: {
+        //                     surface: seg.surface,      // Surface type
+        //                     log_ratio: seg.features.log_ratio,
+        //                     p_1_3: seg.features.p_1_3, // Power in 1-3 Hz band
+        //                     p_7_15: seg.features.p_7_15 // Power in 7-15 Hz band
+        //                 }
+        //             };
 
-        // --- Filter off-road segments ---
-        document.getElementById('cb-offroad-only').addEventListener('change', e => {
-            const offOnly = e.target.checked;
-            reconstructedLinesLayer.eachLayer(layer => {
-                const onRoad = layer.feature.properties.on_road;
-                if (offOnly && onRoad) layer.setStyle({opacity:0, interactive:false});
-                else layer.setStyle({opacity:0.9, interactive:true});
-            });
-        });
+        //             surfaceLayer.addData(feature);
+        //         });
 
-        // --- Reload reconstructed routes ---
-        document.getElementById('btn-reload-routes').addEventListener('click', loadReconstructedRoutes);
+        //     } catch (err) {
+        //         console.error("Error loading surface classification:", err);
+        //     }
+        // }
 
-        // --- Show surface types ---
+
+        // // --- UI CONTROLS for map interaction ---
+        // const routeControl = L.control({position: 'topright'});
+        // routeControl.onAdd = function(map) {
+        //     // Create custom control container
+        //     const div = L.DomUtil.create('div', 'route-controls leaflet-bar');
+        //     div.innerHTML = `
+        //         <label><input type="checkbox" id="cb-show-points"> Show Points</label><br/>
+        //         <label><input type="checkbox" id="cb-offroad-only"> Off-Road Only</label><br/>
+        //         <button id="btn-reload-routes">Reload Routes</button>
+        //     `;
+        //     L.DomEvent.disableClickPropagation(div); // Prevent map clicks through control
+        //     return div;
+        // };
+        // routeControl.addTo(map);
+
+        // // --- Toggle raw points visibility ---
+        // document.getElementById('cb-show-points').addEventListener('change', e => {
+        //     if (e.target.checked) map.addLayer(markerLayer);
+        //     else map.removeLayer(markerLayer);
+        // });
+
+        // // --- Filter to show only off-road segments ---
+        // document.getElementById('cb-offroad-only').addEventListener('change', e => {
+        //     const offOnly = e.target.checked;
+        //     reconstructedLinesLayer.eachLayer(layer => {
+        //         const onRoad = layer.feature.properties.on_road;
+        //         if (offOnly && onRoad) {
+        //             layer.setStyle({opacity:0, interactive:false}); // Hide on-road
+        //         } else {
+        //             layer.setStyle({opacity:0.9, interactive:true}); // Show with interaction
+        //         }
+        //     });
+        // });
+
+        // // --- Reload reconstructed routes on button click ---
+        // document.getElementById('btn-reload-routes').addEventListener('click', loadReconstructedRoutes);
+
+        // --- Show surface classification on button click ---
         document.getElementById("showSurfaceBtn").onclick = loadSurfaceClassification;
 
-        // --- INITIAL LOAD ---
-        // Raw points only if explicitly requested
+        // --- INITIAL LOAD when page first opens ---
+        // Raw points only loaded if explicitly requested (commented out by default)
         // fetchSensorData(); // Uncomment if you want points by default
-        loadReconstructedRoutes();
+        
+        // loadReconstructedRoutes(); // Load road segments automatically
 
-    });
+    }); // End of DOMContentLoaded event listener
     </script>
 
 </body>
 </html>
-
-

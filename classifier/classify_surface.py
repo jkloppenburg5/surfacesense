@@ -13,7 +13,7 @@ OVERLAP = WINDOW // 2   # 50%
 EPS = 1e-6
 
 # Thresholds (FROM YOUR HISTOGRAM)
-GRAVEL_ENTER = 0.5     # log-ratio > this → gravel
+GRAVEL_ENTER = -2.0     # log-ratio > this → gravel
 GRAVEL_EXIT  = -2.0    # log-ratio < this → pavement
 
 PERSIST_N = 3           # consecutive windows required
@@ -25,17 +25,49 @@ def band_power(freqs, spectrum, f_lo, f_hi):
     idx = (freqs >= f_lo) & (freqs < f_hi)
     if not np.any(idx):
         return 0.0
-    # return np.mean(spectrum[idx] ** 2)
-    return np.mean(spectrum[idx])
+    # true power
+    return float(np.mean(spectrum[idx] ** 2))
+    # return np.mean(spectrum[idx])
+
+
+# def compute_log_ratio(window):
+#     """
+#     window: (N,3) accelerometer window
+#     """
+#     x, y, z = window[:, 0], window[:, 1], window[:, 2]
+
+#     # Remove DC (orientation + gravity proxy)
+#     x -= x.mean()
+#     y -= y.mean()
+#     z -= z.mean()
+
+#     mag = np.sqrt(x*x + y*y + z*z)
+#     mag -= mag.mean()
+
+#     yf = np.abs(rfft(mag))
+#     xf = rfftfreq(len(mag), 1.0 / SAMPLE_RATE)
+
+#     p13 = band_power(xf, yf, 1.0, 3.0)
+#     p715 = band_power(xf, yf, 7.0, 15.0)
+
+#     log_ratio = np.log(p715 + EPS) - np.log(p13 + EPS)
+
+#     return float(log_ratio), {
+#         "p_1_3": float(p13),
+#         "p_7_15": float(p715),
+#         "log_ratio": float(log_ratio)
+#     }
 
 
 def compute_log_ratio(window):
     """
     window: (N,3) accelerometer window
     """
-    x, y, z = window[:, 0], window[:, 1], window[:, 2]
+    x = window[:, 0].astype(float)
+    y = window[:, 1].astype(float)
+    z = window[:, 2].astype(float)
 
-    # Remove DC (orientation + gravity proxy)
+    # Remove DC drift (fallback gravity handling)
     x -= x.mean()
     y -= y.mean()
     z -= z.mean()
@@ -43,20 +75,22 @@ def compute_log_ratio(window):
     mag = np.sqrt(x*x + y*y + z*z)
     mag -= mag.mean()
 
-    yf = np.abs(rfft(mag))
-    xf = rfftfreq(len(mag), 1.0 / SAMPLE_RATE)
+    amp = np.abs(rfft(mag))
+    freqs = rfftfreq(len(mag), 1.0 / SAMPLE_RATE)
 
-    p13 = band_power(xf, yf, 1.0, 3.0)
-    p715 = band_power(xf, yf, 7.0, 15.0)
+    p13  = band_power(freqs, amp, 1.0, 3.0)
+    p715 = band_power(freqs, amp, 7.0, 15.0)
 
-    log_ratio = np.log(p715 + EPS) - np.log(p13 + EPS)
+    p13  = max(p13, EPS)
+    p715 = max(p715, EPS)
 
-    return float(log_ratio), {
-        "p_1_3": float(p13),
-        "p_7_15": float(p715),
-        "log_ratio": float(log_ratio)
+    log_ratio = float(np.log(p715) - np.log(p13))
+
+    return log_ratio, {
+        "p_1_3": p13,
+        "p_7_15": p715,
+        "log_ratio": log_ratio
     }
-
 
 def process(data):
     arr = np.array([[d["x"], d["y"], d["z"]] for d in data])

@@ -1,101 +1,123 @@
-// server/server.js
+// server/server.js - Express API server for sensor data processing
+/*
+SENSOR DATA API SERVER - EXPRESS.JS BACKEND
+
+PURPOSE:
+• REST API for sensor data ingestion and processing
+• Map-matching and surface classification pipeline
+• File upload with validation
+• Database interaction layer
+
+KEY ENDPOINTS:
+• GET  /api/sensor-data       - Retrieve stored sensor readings
+• POST /sensor                - Insert single sensor record
+• POST /api/check-granularity - Validate file sampling rate
+• POST /api/upload            - Upload and parse CSV files
+• GET  /routes/reconstructed  - Generate map-matched routes
+• GET  /api/classify          - Classify road surfaces via Python ML
+
+ARCHITECTURE:
+• Express.js REST API with CORS support
+• PostgreSQL integration via connection pool
+• Multer for file upload handling
+• Turf.js for geospatial calculations
+• OSRM for map-matching (OpenStreetMap)
+• Python integration for machine learning classification
+
+EXTERNAL SERVICES:
+• OSRM Demo Server (router.project-osrm.org) - Map matching
+• Python classifier (classify_surface.py)    - Surface analysis
+
+DATA FLOW:
+Upload → Validation → DB Insert → Map Matching → Classification → Visualization
+*/
+
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+require("dotenv").config();  // Load environment variables from .env file
 const { insertSensorRecord, getSensorData } = require('./database.js');
 
 const app = express();
 const PORT = 8000;
 
 const multer = require("multer");
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage() });  // Store files in memory
 
-const { checkGranularity } = require("./granularityCheck.js");
-const { parseCsvAndInsert } = require("./parsers/csvParser.js");
-console.log("parseCsvAndInsert:", parseCsvAndInsert);
+const { checkGranularity } = require("./granularityCheck.js");    // Sampling rate validation
+const { parseCsvAndInsert } = require("./parsers/csvParser.js");  // CSV processing
+console.log("parseCsvAndInsert:", parseCsvAndInsert);  // Debug log
 
-// --- NEW: add these at the top of server.js ---
-const axios = require('axios');
-const turf = require('@turf/turf');
-const { pool } = require('./database.js');   // needed for SQL query
+// --- NEW: Dependencies for advanced features ---
+const axios = require('axios');      // HTTP client for OSRM API calls
+const turf = require('@turf/turf');  // Geospatial analysis library
+const { pool } = require('./database.js');   // Database connection for direct queries
 
-// Connect Node → Python
+// Python integration for machine learning classification
 const { spawn } = require("child_process");
 
-// Parse JSON bodies (required for POST /sensor)
+// Parse JSON bodies (required for POST endpoints)
 app.use(express.json());
 
-// Serve static files from "public"
+// Serve static files from "public" directory (frontend HTML/CSS/JS)
 app.use(express.static('public'));
 
-// Enable CORS for development/testing
+// Enable CORS for cross-origin requests (development/testing)
 app.use(cors());
 
-// // Helper for Python Classifier
-// function runPythonClassifier(points) {
-//   return new Promise((resolve, reject) => {
-//     const py = spawn("python3", ["classifier/classify_surface.py"]);
-
-//     let output = "";
-//     let error = "";
-
-//     py.stdout.on("data", d => output += d.toString());
-//     py.stderr.on("data", d => error += d.toString());
-
-//     py.on("close", code => {
-//       if (code !== 0) return reject(error);
-//       resolve(JSON.parse(output));
-//     });
-
-//     py.stdin.write(JSON.stringify({ data: points }));
-//     py.stdin.end();
-//   });
-// }
-
+// Python classifier wrapper with enhanced debugging
 function runPythonClassifier(points) {
   return new Promise((resolve, reject) => {
+    // Spawn Python process with classifier script
     const py = spawn("python3", ["classifier/classify_surface.py"]);
 
     let output = "";
     let error = "";
 
+    // Capture Python stdout with debug logging
     py.stdout.on("data", d => {
       const s = d.toString();
-      console.log("🐍 PY STDOUT:", s);
+      console.log("🐍 PY STDOUT:", s);  // Debug prefix for Python output
       output += s;
     });
 
+    // Capture Python stderr with debug logging
     py.stderr.on("data", d => {
       const s = d.toString();
-      console.error("🐍 PY STDERR:", s);
+      console.error("🐍 PY STDERR:", s);  // Error prefix for Python errors
       error += s;
     });
 
+    // Handle process completion
     py.on("close", code => {
       console.log("🐍 PY EXIT CODE:", code);
-      if (code !== 0) return reject(error);
-      resolve(JSON.parse(output));
+      if (code !== 0) return reject(error);  // Non-zero exit indicates failure
+      resolve(JSON.parse(output));           // Parse successful JSON output
     });
 
+    // Send data to Python stdin (JSON format)
     py.stdin.write(JSON.stringify({ data: points }));
-    py.stdin.end();
+    py.stdin.end();  // Close stdin to signal end of input
   });
 }
 
-// Simple hello route
+// ============================================================================
+// BASIC API ENDPOINTS
+// ============================================================================
+
+// Simple hello route for testing server connectivity
 app.get('/hello', (req, res) => {
   res.send({ message: "Hello to You" });
 });
 
-// Test ping route
+// Test ping route for health checks
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });
 
-// Return the latest sensor data
+// Return the latest sensor data from database
 app.get('/api/sensor-data', async (req, res) => {
   try {
-    const rows = await getSensorData();  // fetch from DB
+    const rows = await getSensorData();  // Fetch from database
     res.json(rows);
   } catch (err) {
     console.error('DB query error:', err);
@@ -103,12 +125,12 @@ app.get('/api/sensor-data', async (req, res) => {
   }
 });
 
-// Sensor data insert endpoint
+// Single sensor data insert endpoint
 app.post('/sensor', async (req, res) => {
   const json = req.body;
 
   try {
-    await insertSensorRecord(json);
+    await insertSensorRecord(json);  // Insert into database
     res.json({ status: 'ok' });
   } catch (err) {
     console.error('DB insert error:', err);
@@ -116,11 +138,15 @@ app.post('/sensor', async (req, res) => {
   }
 });
 
-// Pre-upload granularity check
+// ============================================================================
+// FILE UPLOAD ENDPOINTS
+// ============================================================================
+
+// Pre-upload granularity check - validates sampling rate before full upload
 app.post("/api/check-granularity", upload.single("file"), async (req, res) => {
   try {
       const fileBuffer = req.file.buffer;
-      const result = checkGranularity(fileBuffer);
+      const result = checkGranularity(fileBuffer);  // Analyze sampling interval
 
       res.json(result);
   } catch (err) {
@@ -129,14 +155,13 @@ app.post("/api/check-granularity", upload.single("file"), async (req, res) => {
   }
 });
 
-// Full upload + parse + DB insert
-
+// Full upload endpoint - processes CSV and inserts into database
 app.post("/api/upload", upload.single("file"), async (req, res) => {
-console.log("REQ FILE:", req.file);
-console.log("REQ BODY:", req.body);
+console.log("REQ FILE:", req.file);   // Debug log
+console.log("REQ BODY:", req.body);   // Debug log
 
   try {
-      await parseCsvAndInsert(req.file.buffer);
+      await parseCsvAndInsert(req.file.buffer);  // Parse CSV and insert records
       res.json({ status: "ok" });
   } catch (err) {
       console.error("Upload failed:", err);
@@ -145,8 +170,10 @@ console.log("REQ BODY:", req.body);
 });
 
 // ============================================================================
-// NEW ENDPOINT: Reconstructed Road-Aligned Route Segments
+// ADVANCED PROCESSING ENDPOINTS
 // ============================================================================
+
+// Map-matched route reconstruction using OSRM
 app.get('/routes/reconstructed', async (req, res) => {
   try {
     // 1️⃣ Load ALL sensor points ordered by time
@@ -163,9 +190,10 @@ app.get('/routes/reconstructed', async (req, res) => {
       ORDER BY recorded_at ASC
     `);
 
+    // Format points for processing
     const pts = result.rows.map(r => ({
       id: r.id,
-      t: new Date(r.recorded_at).getTime() / 1000,
+      t: new Date(r.recorded_at).getTime() / 1000,  // Convert to Unix timestamp
       lat: Number(r.latitude),
       lon: Number(r.longitude),
       speed: Number(r.speed),
@@ -173,12 +201,10 @@ app.get('/routes/reconstructed', async (req, res) => {
     }));
 
     if (pts.length < 2) {
-      return res.json({ segments: [] });
+      return res.json({ segments: [] });  // Not enough points for route
     }
 
-    // 2️⃣ Split into segments when:
-    //    • Time gap > 10s
-    //    • Distance gap > 30m
+    // 2️⃣ Split into segments based on time/distance gaps
     let segments = [];
     let current = [pts[0]];
 
@@ -186,13 +212,14 @@ app.get('/routes/reconstructed', async (req, res) => {
       const prev = current[current.length - 1];
       const cur = pts[i];
 
-      const dt = cur.t - prev.t;
+      const dt = cur.t - prev.t;  // Time gap in seconds
       const dMeters = turf.distance(
         [prev.lon, prev.lat],
         [cur.lon, cur.lat],
-        { units: 'meters' }
+        { units: 'meters' }  // Calculate geographic distance
       );
 
+      // Split if gap too large (10s or 30m)
       if (dt > 10 || dMeters > 30) {
         segments.push(current);
         current = [cur];
@@ -200,12 +227,13 @@ app.get('/routes/reconstructed', async (req, res) => {
         current.push(cur);
       }
     }
-    segments.push(current);
+    segments.push(current);  // Add final segment
 
     // 3️⃣ Map-match each segment using OSRM demo server
     async function matchSegment(seg) {
       if (seg.length < 2) return null;
 
+      // Format coordinates for OSRM API: "lon,lat;lon,lat;..."
       const coords = seg.map(p => `${p.lon},${p.lat}`).join(';');
 
       const url = `http://router.project-osrm.org/match/v1/driving/${coords}?geometries=geojson&overview=full`;
@@ -214,22 +242,24 @@ app.get('/routes/reconstructed', async (req, res) => {
         const r = await axios.get(url);
         if (!r.data.matchings || r.data.matchings.length === 0) return null;
 
-        return r.data.matchings[0].geometry; // GeoJSON LineString
+        return r.data.matchings[0].geometry; // Extract GeoJSON LineString
       } catch (err) {
         console.error("OSRM error:", err.message);
         return null;
       }
     }
 
+    // Process all segments in sequence
     const matched = [];
     for (const seg of segments) {
       const geom = await matchSegment(seg);
       matched.push({
-        raw_points: seg,
-        matched_line: geom
+        raw_points: seg,     // Original GPS points
+        matched_line: geom   // Map-matched geometry (or null)
       });
     }
 
+    // Return results
     res.json({
       count: matched.length,
       segments: matched
@@ -241,20 +271,35 @@ app.get('/routes/reconstructed', async (req, res) => {
   }
 });
 
-// New API route to classify entire ride
+// Surface classification endpoint - uses Python ML model
 app.get('/api/classify', async (req, res) => {
   try {
+    // Query acceleration data (x,y,z) for classification
+    // const result = await pool.query(`
+    //   SELECT 
+    //     EXTRACT(EPOCH FROM recorded_at) AS t,  // Unix timestamp
+    //     x, y, z,
+    //     latitude AS lat,
+    //     longitude AS lon
+    //   FROM surface_sensor_data
+    //   WHERE x IS NOT NULL AND y IS NOT NULL AND z IS NOT NULL
+    //   ORDER BY recorded_at ASC
+    // `);
     const result = await pool.query(`
       SELECT 
         EXTRACT(EPOCH FROM recorded_at) AS t,
-        x, y, z,
+        "x", "y", "z",
         latitude AS lat,
         longitude AS lon
       FROM surface_sensor_data
-      WHERE x IS NOT NULL AND y IS NOT NULL AND z IS NOT NULL
+      WHERE "x" IS NOT NULL
+        AND "y" IS NOT NULL
+        AND "z" IS NOT NULL
       ORDER BY recorded_at ASC
     `);
 
+
+    // Format data for Python classifier
     const points = result.rows.map(r => ({
       t: Number(r.t),
       x: Number(r.x),
@@ -264,6 +309,7 @@ app.get('/api/classify', async (req, res) => {
       lon: Number(r.lon)
     }));
 
+    // Run Python classification
     const segments = await runPythonClassifier(points);
 
     res.json({ count: segments.length, segments });
@@ -274,7 +320,11 @@ app.get('/api/classify', async (req, res) => {
   }
 });
 
-// Single server listener (IMPORTANT)
+// ============================================================================
+// SERVER STARTUP
+// ============================================================================
+
+// Single server listener (IMPORTANT: Only one app.listen per server)
 app.listen(PORT, () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });

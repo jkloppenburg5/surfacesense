@@ -292,6 +292,71 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         display: block;
         }
         */
+
+        /* =========================================================
+        HAMBURGER SLIDE-OUT PANEL
+        HTML + CSS ONLY — NO JS YET
+        ========================================================= */
+
+        #hamburgerPanel {
+            position: fixed;
+            top: 52px;              /* aligns below toolbar */
+            right: 0;
+            width: 280px;
+            height: calc(100vh - 52px);
+
+            background: rgba(25, 35, 55, 0.95);
+            backdrop-filter: blur(6px);
+
+            box-shadow: -6px 0 20px rgba(0,0,0,0.35);
+
+            transform: translateX(100%);   /* HIDDEN by default */
+            transition: transform 0.25s ease;
+
+            z-index: 1100;
+            color: white;
+
+            font-family: system-ui, sans-serif;
+        }
+
+        /* PANEL CONTENT */
+        #hamburgerPanel .panel-header {
+            padding: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            font-size: 15px;
+        }
+
+        #hamburgerPanel .panel-section {
+            padding: 14px;
+            font-size: 14px;
+        }
+
+        #hamburgerPanel a {
+            color: #cfe9ff;
+            text-decoration: none;
+        }
+
+        #hamburgerPanel a:hover {
+            text-decoration: underline;
+        }
+
+        #hamburgerPanel .panel-hint {
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
+        #hamburgerPanel .muted {
+            opacity: 0.6;
+            font-size: 12px;
+        }
+
+        /* ---------------------------------------------------------
+        OPEN STATE (manual toggle later via JS)
+        --------------------------------------------------------- */
+        #hamburgerPanel.open {
+            transform: translateX(0);
+        }
+
     </style>
 
 </head>
@@ -314,13 +379,13 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
             <input type="file" id="fileInput" accept=".csv,.txt" hidden />
             </label>
 
-            <div class="upload-help">
+            <!-- <div class="upload-help">
                 <small>
                 Need a file?
                 <a href="/downloads/surfacesense_sample.csv" download>Sample</a> ·
                 <a href="/downloads/surfacesense_template.csv" download>Template</a>
                 </small>
-            </div>
+            </div> -->
 
             <!-- <button id="trySampleBtn" class="toolbar-btn">
             Try Sample
@@ -367,7 +432,6 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
                 ☰
             </button>
 
-            <span id="statusText">Idle</span>
         </div>
 
         <!-- <div class="toolbar-right">
@@ -376,7 +440,37 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
 
     </div>
 
+    <!-- ===============================
+    HAMBURGER SLIDE-OUT PANEL (HTML ONLY)
+    KEEP — wiring comes later
+    =============================== -->
+    <div id="hamburgerPanel" aria-hidden="true">
 
+        <div class="panel-header">
+            <strong>Getting Started</strong>
+        </div>
+
+        <div class="panel-section">
+            <p class="panel-hint">
+                New here?<br>
+                Try working with a sample file to see how surface classification works.
+            </p>
+        </div>
+
+        <div class="panel-section">
+            <a href="/downloads/surfacesense_sample.csv" download>
+                Download sample CSV
+            </a><br>
+            <a href="/downloads/surfacesense_template.csv" download>
+                Download blank template CSV
+            </a>
+        </div>
+
+        <div class="panel-section muted">
+            Status will appear here later.
+        </div>
+
+    </div>
 
 
 
@@ -391,6 +485,12 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
     // Wait for DOM to be fully loaded before executing
     document.addEventListener('DOMContentLoaded', () => {
 
+        // ---------------- STATUS HELPER ----------------
+        // Safe helper: does nothing if statusText is not present
+        function setStatus(text) {
+            const el = document.getElementById("statusText");
+            if (el) el.innerText = text;
+        }
 
         /// --- CREATE AND INITIALIZE Leaflet map --- ///
 
@@ -620,8 +720,9 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         }
 
         async function locateByIP() {
-            const status = document.getElementById("statusText");
-            status.innerText = "Locating (approx)…";
+            // const status = document.getElementById("statusText");
+            // status.innerText = "Locating (approx)…";
+            setStatus("Analyzing…");
 
             try {
                 const resp = await fetch("http://ip-api.com/json/?fields=status,lat,lon,city,regionName");
@@ -661,8 +762,9 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         // --- TOP TOOLBAR WIRING ---
 
         document.getElementById("runClassifyBtn").onclick = async () => {
-        const status = document.getElementById("statusText");
-        status.innerText = "Analyzing…";
+        // const status = document.getElementById("statusText");
+        // status.innerText = "Analyzing…";
+        setStatus("Analyzing…");
 
         try {
             await loadSurfaceClassification();
@@ -673,6 +775,14 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         };
 
         document.getElementById("locateBtn").onclick = locateByIP;
+
+        // --- HAMBURGER MENU TOGGLE ---
+        const hamburgerBtn = document.getElementById("hamburgerBtn");
+        const hamburgerPanel = document.getElementById("hamburgerPanel");
+
+        hamburgerBtn.onclick = () => {
+            hamburgerPanel.classList.toggle("open");
+        };
 
     }); // End of DOMContentLoaded event listener
     </script>

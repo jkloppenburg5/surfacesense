@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<!--
+<!-- 
 SURFACESENSE MAP - Sensor Data Visualization Platform
 
 ARCHITECTURE:
-• 3 Visualization Layers: Points, Routes, Surfaces
-• 2-Phase Upload: Validation → Full Upload
-• APIs: /api/sensor-data, /routes/reconstructed, /api/classify
+• APIs: /api/sensor-data, /api/classify
 • Base Map: Esri World Imagery (maxZoom: 19)
 • Features: Geolocation, Progress Tracking, Layer Controls
 
-TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest
+TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
 
 <!DOCTYPE html>
 <!-- HTML5 document type declaration -->
@@ -19,64 +16,366 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest
     <!-- Document metadata section -->
     <meta charset="UTF-8">
     <!-- Character encoding: UTF-8 for Unicode support -->
-    <title>SurfaceSense Map</title>
+    <title>Surfacesense Map</title>
     <!-- Browser tab title -->
     
+    <!-- Leaflet JavaScript library (mapping engine) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <!-- Import Leaflet CSS for map styling -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
+    />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <!-- <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"
+    />
+    <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script> -->
+
     <style>
         /* Internal CSS styles */
-        #map { 
-            height: 90vh; /* Map takes 90% of viewport height */
-            width: 100%;  /* Full width of container */
+
+        /* #topToolbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 52px;
+        background: rgba(20, 20, 30, 0.9);
+        color: white;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        z-index: 1000;
+        font-family: system-ui, sans-serif;
+        } */
+
+        #topToolbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 52px;
+
+            /* Color + transparency */
+            background: linear-gradient(
+                180deg,
+                rgba(40, 60, 90, 0.90),
+                rgba(25, 35, 55, 0.90)
+            );
+
+            /* background: linear-gradient(
+                180deg,
+                rgba(120, 70, 190, 0.85),
+                rgba(90, 40, 160, 0.85)
+            ); */
+
+            /* Glass effect */
+            /* backdrop-filter: blur(8px); */
+            /* -webkit-backdrop-filter: blur(8px); */
+
+            /* Subtle depth */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            z-index: 1000;
+
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
+
+
+        /* #map {
+        height: calc(100vh - 52px);
+        margin-top: 52px;
+        } */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .toolbar-left,
+        .toolbar-center,
+        .toolbar-right {
+        display: flex;
+        align-items: center;
+        }
+
+        .toolbar-left {
+        flex: 1;
+        }
+
+        .toolbar-center {
+        gap: 10px;
+        }
+
+        .toolbar-right {
+        flex: 1;
+        justify-content: flex-end;
+        font-size: 13px;
+        opacity: 0.8;
+        }
+
+        /* .app-title {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        } */
+        .app-title {
+        font-weight: 500;
+        letter-spacing: 0.6px;
+        font-size: 15px;
+        opacity: 0.95;
+        }
+
+
+        /* .toolbar-btn {
+        background: rgba(255,255,255,0.1);
+        border: none;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        }
+
+        .toolbar-btn:hover {
+        background: rgba(255,255,255,0.2);
+        } */
+        .toolbar-btn {
+        background: rgba(255, 255, 255, 0.12);
+        border: none;
+        color: white;
+        padding: 6px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+
+        transition:
+            background 0.15s ease,
+            transform 0.1s ease,
+            box-shadow 0.1s ease;
+        }
+
+        .toolbar-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.15) inset;
+        }
+
+        .toolbar-btn:active {
+        transform: translateY(1px);
+        }
+
+        /* .toolbar-btn.primary {
+        background: #3fa9f5;
+        color: #08121f;
+        } */
+        .toolbar-btn.primary {
+            background: linear-gradient(
+                135deg,
+                #4fc3f7,
+                #2196f3
+            );
+            color: #071a2b;
+            font-weight: 500;
+        }
+
+        .toolbar-btn.primary:hover {
+            background: linear-gradient(
+                135deg,
+                #64ccff,
+                #42a5f5
+            );
+        }
+
+        .toolbar-btn.primary:hover {
+            background: #5bb7ff;
+        }
+
+        .toolbar-dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 36px;
+            right: 0;
+            background: rgba(30,30,40,0.95);
+            padding: 10px;
+            border-radius: 6px;
+            min-width: 180px;
+        }
+
+        .toolbar-dropdown.open .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .toolbar-right {
+            flex: 1;
+            justify-content: flex-end;
+            font-size: 13px;
+            opacity: 0.75;
+        }
+
+        #statusText {
+            transition: opacity 0.2s ease;
+        }
+
+        .toolbar-link {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.10);
+        }
+        .toolbar-link:hover { background: rgba(255,255,255,0.18); }
+
+        .upload-help {
+            font-size: 12px;
+            opacity: 0.75;
+            margin-left: 6px;
+        }
+
+        .upload-help a {
+            color: #cfe9ff;
+            text-decoration: none;
+        }
+
+        .upload-help a:hover {
+            text-decoration: underline;
+        }
+
+        .toolbar-hint {
+        margin-left: 12px;
+        opacity: 0.7;
+        font-size: 12px;
+        white-space: nowrap;
+        }
+
+        .toolbar-hint strong {
+        font-weight: 500;
+        opacity: 0.9;
+        }
+
+        html, body {
+        height: 100%;
+        margin: 0;
+        }
+
+
+
     </style>
 </head>
 <body>
     <!-- Main page content begins -->
-    <h1>Surfacesense Map</h1>
+    <!-- <h1>Surfacesense Map</h1> -->
     <!-- Main page heading -->
     
-    <div id="location"></div>
-    <!-- Container to display user's geographic location -->
-    
+    <!-- <div id="location"></div> -->
+    <!-- Container to display user's geographic location  -->
+
+    <div id="topToolbar">
+    <div class="toolbar-left">
+        <span class="app-title">Surfacesense</span>
+    </div>
+
+    <div class="toolbar-center">
+        <label class="toolbar-btn">
+        Upload
+        <input type="file" id="fileInput" accept=".csv,.txt" hidden />
+        </label>
+
+        <div class="upload-help">
+            <small>
+            Need a file?
+            <a href="/downloads/surfacesense_sample.csv" download>Sample</a> ·
+            <a href="/downloads/surfacesense_template.csv" download>Template</a>
+            </small>
+        </div>
+
+        <!-- <button id="trySampleBtn" class="toolbar-btn">
+        Try Sample
+        </button> -->
+
+        <button id="runClassifyBtn" class="toolbar-btn primary">
+        Analyze Surfaces
+        </button>
+
+        <button id="locateBtn" class="toolbar-btn">
+        Locate (Approx)
+        </button>
+
+        <div class="toolbar-hint">
+        <small>
+            <strong>New here?</strong>
+            Try a sample ride to see how surface classification works.
+        </small>
+        </div>
+
+    <!-- <div class="toolbar-dropdown" id="layersDropdown">
+        <button class="toolbar-btn" id="layersBtn">Layers ▾</button>
+        <div class="dropdown-content">
+            <label>
+            <input type="checkbox" id="cb-surface" checked />
+            Surface classification
+            </label>
+            <label>
+            <input type="checkbox" id="cb-points" checked />
+            Raw GPS points
+            </label>
+        </div>
+    </div> -->
+
+    </div>
+
+    <div class="toolbar-right">
+        <span id="statusText">Idle</span>
+    </div>
+    </div>
+
     <div id="map"></div>
     <!-- Container where the Leaflet map will be rendered -->
 
-    <!-- Upload section for sensor data files -->
-    <h2>Upload Sensor File</h2>
-    <!-- Section heading -->
-    
-    <!-- File input for CSV/TXT sensor data -->
-    <input type="file" id="fileInput" accept=".csv,.txt" />
-    <!-- accept attribute restricts file types to CSV and text files -->
-    <br><br> <!-- Line breaks for spacing -->
-
-    <!-- Progress bar for upload tracking (hidden by default) -->
-    <progress id="uploadProgress" value="0" max="100" style="width:300px; display:none;"></progress>
-    
-    <!-- Status messages for upload process -->
-    <div id="uploadStatus"></div>
-
-    <!-- Button to trigger surface type visualization -->
-    <button id="showSurfaceBtn">Show Surface Types</button>
-    <br><br> <!-- Spacing -->
-
     <!-- External JavaScript for file upload functionality -->
     <script src="upload.js"></script>
-
-    <!-- Leaflet JavaScript library (mapping engine) -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <!-- Main application JavaScript -->
     <script>
     // Wait for DOM to be fully loaded before executing
     document.addEventListener('DOMContentLoaded', () => {
 
-        // --- Initialize Leaflet map ---
+
+        /// --- CREATE AND INITIALIZE Leaflet map --- ///
+
+
         // Create map instance in 'map' div, centered on Madison, WI coordinates
-        const map = L.map('map').setView([43.0731, -89.4012], 13);
+        // const map = L.map('map').setView([43.0731, -89.4012], 13);
+        const map = L.map('map', {
+        zoomControl: false
+        }).setView([43.0731, -89.4012], 13);
+
+        L.control.zoom({
+            position: "bottomleft"
+        }).addTo(map);
+
+
         // [latitude, longitude], zoom level 13
 
         // Alternative: OpenStreetMap base layer (commented out)
@@ -84,105 +383,58 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest
         //     attribution: '&copy; OpenStreetMap contributors'
         // }).addTo(map);
 
-        // Use Esri satellite imagery as base map layer
-        L.tileLayer(
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            {
-                attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
-                maxZoom: 19 // Maximum zoom level allowed
-            }
-        ).addTo(map);
+        // // Use Esri satellite imagery as base map layer
+        // L.tileLayer(
+        //     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        //     {
+        //         attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
+        //         maxZoom: 19 // Maximum zoom level allowed
+        //     }
+        // ).addTo(map);
 
-        // Create layer group for raw sensor point markers
-        let markerLayer = L.layerGroup().addTo(map);
+
+        /// --- BASEMAPS --- ///
+
         
-        // // Create GeoJSON layer for road-aligned reconstructed lines
-        // let reconstructedLinesLayer = L.geoJSON(null, {
-        //     // Style function: green for on-road, red for off-road
-        //     style: feature => ({
-        //         color: feature.properties.on_road ? '#2ecc71' : '#e74c3c', // Green/Red
-        //         weight: 4,     // Line thickness
-        //         opacity: 0.9   // Line transparency
-        //     }),
-        //     // Define behavior for each line feature
-        //     onEachFeature: function(feature, layer) {
-        //         const p = feature.properties || {};
-        //         // Format timestamps
-        //         const start = p.start_time || '';
-        //         const end = p.end_time || '';
-        //         // Format numerical values
-        //         const avgSpeed = p.avg_speed ? p.avg_speed.toFixed(2) : '';
-        //         const vibVar = p.vibration_variance ? p.vibration_variance.toFixed(4) : '';
-                
-        //         // Create popup content with segment info
-        //         layer.bindPopup(`
-        //             <strong>Segment:</strong> ${start} → ${end}<br/>
-        //             Avg speed: ${avgSpeed}<br/>
-        //             Vibration variance: ${vibVar}<br/>
-        //             On Road: ${p.on_road ? '✅' : '❌'}<br/>
-        //             Points: ${p.point_count || 0}
-        //         `);
-                
-        //         // Show popup on hover
-        //         layer.on('mouseover', () => layer.openPopup());
-        //         layer.on('mouseout', () => layer.closePopup());
-        //     }
-        // }).addTo(map);
+                const esriImagery = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+            attribution: "Tiles © Esri",
+            maxZoom: 19
+        }
+        );
 
-        // Create layer for surface classification visualization
-        // const surfaceLayer = L.geoJSON(null, {
-        //     // Style: orange for gravel, blue for other surfaces
-        //     style: f => ({
-        //         color: f.properties.surface === "gravel" ? "orange" : "blue",
-        //         weight: 5,      // Thicker lines for visibility
-        //         opacity: 0.85   // Slightly transparent
-        //     }),
-        //     // Define popup for surface segments
-        //     onEachFeature: (feature, layer) => {
-        //         const p = feature.properties;
-        //         layer.bindPopup(`
-        //             <strong>Surface:</strong> ${p.surface}<br/>
-        //             <strong>Log Ratio:</strong> ${p.log_ratio.toFixed(2)}<br/>
-        //             P(1–3 Hz): ${p.p_1_3.toExponential(2)}<br/>
-        //             P(7–15 Hz): ${p.p_7_15.toExponential(2)}
-        //         `);
-        //     }
-        // }).addTo(map);
+        const esriTopo = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+        {
+            attribution: "Tiles © Esri",
+            maxZoom: 19
+        }
+        );
 
-        // const surfaceLayer = L.geoJSON(null, {
-        //     style: f => ({
-        //         color: f.properties.surface === "gravel" ? "orange" : "blue",
-        //         weight: 5,
-        //         opacity: 0.9
-        //     }),
-        //     onEachFeature: function (feature, layer) {
-        //         const p = feature.properties || {};
+        const osm = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            attribution: "© OpenStreetMap contributors",
+            maxZoom: 19
+        }
+        );
 
-        //         const fmt = (v, d = 2) =>
-        //             (v === undefined || v === null || isNaN(v))
-        //                 ? "—"
-        //                 : Number(v).toFixed(d);
+        // Default basemap
+        esriImagery.addTo(map);
 
-        //         layer.bindPopup(`
-        //             <strong>Surface:</strong> ${p.surface}<br/>
+        // Basemap control
+        const baseMaps = {
+        "Satellite": esriImagery,
+        "Topo": esriTopo,
+        "OpenStreetMap": osm
+        };
 
-        //             <hr style="margin:4px 0"/>
 
-        //             <strong>Log Ratio:</strong> ${fmt(p.log_ratio, 3)}<br/>
-        //             <strong>P(1–3 Hz):</strong> ${fmt(p.p_1_3)}<br/>
-        //             <strong>P(7–15 Hz):</strong> ${fmt(p.p_7_15)}<br/>
+        /// --- LAYERS --- ///
 
-        //             <hr style="margin:4px 0"/>
 
-        //             <strong>Start:</strong> ${p.start_time || "—"}<br/>
-        //             <strong>End:</strong> ${p.end_time || "—"}<br/>
-
-        //             <strong>Avg speed:</strong> ${fmt(p.avg_speed)} m/s<br/>
-        //             <strong>Horiz acc:</strong> ${fmt(p.hAcc)} m<br/>
-        //             <strong>Bearing acc:</strong> ${fmt(p.bearing_accuracy)} °<br/>
-        //         `);
-        //     }
-        // }).addTo(map);
+        let markerLayer = L.layerGroup().addTo(map);
 
         const surfaceLayer = L.geoJSON(null, {
             style: f => ({
@@ -226,82 +478,45 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest
             }
         }).addTo(map);
 
-
-        // --- LAYER TOGGLES ---
-        const layerToggle = L.control({ position: "topright" });
-
-        layerToggle.onAdd = function () {
-            const div = L.DomUtil.create("div", "leaflet-bar");
-            div.style.background = "white";
-            div.style.padding = "8px";
-            div.style.fontSize = "13px";
-
-            div.innerHTML = `
-                <label>
-                    <input type="checkbox" id="cb-surface" checked />
-                    Surface classification
-                </label><br/>
-                <label>
-                    <input type="checkbox" id="cb-points" checked />
-                    Raw GPS points
-                </label>
-            `;
-
-            L.DomEvent.disableClickPropagation(div);
-            return div;
+        const overlayMaps = {
+            "Surface classification": surfaceLayer,
+            "Raw GPS points": markerLayer
         };
 
-        layerToggle.addTo(map);
 
-        document.getElementById("cb-surface").addEventListener("change", e => {
-            if (e.target.checked) {
-                map.addLayer(surfaceLayer);
-            } else {
-                map.removeLayer(surfaceLayer);
-            }
-        });
+        /// --- CONTROLS --- ///
 
-        document.getElementById("cb-points").addEventListener("change", e => {
-            if (e.target.checked) {
-                map.addLayer(markerLayer);
-            } else {
-                map.removeLayer(markerLayer);
-            }
-        });
+        // L.control
+        // .locate({
+        //     position: "topright",
+        //     strings: {
+        //     title: "Locate me"
+        //     },
+        //     locateOptions: {
+        //     enableHighAccuracy: true
+        //     }
+        // })
+        // .addTo(map);
 
+        L.control
+            .layers(baseMaps, overlayMaps, {
+                collapsed: true,
+                position: "bottomright"
+            })
+            .addTo(map);
 
-        // Get user location using IP geolocation
-        async function getLocation() {
-            const endpoint = 'http://ip-api.com/json/?fields=status,message,lat,lon';
-            try {
-                const response = await fetch(endpoint);
-                const data = await response.json();
-                if (data.status === "success") {
-                    const lat = data.lat;
-                    const lon = data.lon;
-                    
-                    // Display location in HTML
-                    document.getElementById('location').innerHTML = 
-                        `Your location: <br>Latitude: ${lat}<br>Longitude: ${lon}`;
+        L.Control.geocoder({
+            defaultMarkGeocode: true,
+            placeholder: "Find address…",
+            position: "bottomright"
+        })
+            .on("markgeocode", e => {
+                map.fitBounds(e.geocode.bbox);
+        })
+        .addTo(map);
 
-                    // Add marker at user's location
-                    L.marker([lat, lon]).addTo(map).bindPopup("You are here!").openPopup();
-                    
-                    // Add circle around location (1km radius)
-                    L.circle([lat, lon], { radius: 1000 }).addTo(map);
+        /// --- APP LOGIC --- ///
 
-                    // Center map on user's location
-                    map.setView([lat, lon], 13);
-                } else {
-                    // Handle API error
-                    document.getElementById('location').innerText = 
-                        `Unable to retrieve location: ${data.message}`;
-                }
-            } catch (err) {
-                console.error("Error getting geolocation", err);
-            }
-        }
-        getLocation(); // Execute location fetch
 
         // FETCH RAW POINTS from server API
         async function fetchSensorData() {
@@ -321,57 +536,6 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest
                 console.error('Error fetching sensor data:', err);
             }
         }
-
-        // // --- FETCH ROAD-ALIGNED POLYLINES from backend ---
-        // async function loadReconstructedRoutes() {
-        //     try {
-        //         const resp = await fetch('/routes/reconstructed');
-        //         if (!resp.ok) {
-        //             console.error('Failed to fetch reconstructed routes', resp.statusText);
-        //             return;
-        //         }
-
-        //         const data = await resp.json();
-        //         reconstructedLinesLayer.clearLayers(); // Clear existing lines
-
-        //         // Process each road segment
-        //         data.segments.forEach(seg => {
-        //             if (!seg.matched_line) return; // Skip if no geometry
-
-        //             // Calculate timestamps from raw points
-        //             const startTime = seg.raw_points[0]?.t ? 
-        //                 new Date(seg.raw_points[0].t*1000).toISOString() : '';
-        //             const endTime = seg.raw_points[seg.raw_points.length-1]?.t ? 
-        //                 new Date(seg.raw_points[seg.raw_points.length-1].t*1000).toISOString() : '';
-                    
-        //             // Calculate average speed
-        //             const avgSpeed = seg.raw_points.length ? 
-        //                 (seg.raw_points.reduce((s,p)=>s+(p.speed||0),0)/seg.raw_points.length) : 0;
-
-        //             // Create GeoJSON feature
-        //             const feature = {
-        //                 type: 'Feature',
-        //                 geometry: seg.matched_line,
-        //                 properties: {
-        //                     on_road: true, // Assume matched = on-road
-        //                     start_time: startTime,
-        //                     end_time: endTime,
-        //                     avg_speed: avgSpeed,
-        //                     vibration_variance: 0, // Placeholder
-        //                     point_count: seg.raw_points.length
-        //                 }
-        //             };
-        //             reconstructedLinesLayer.addData(feature);
-        //         });
-
-        //         // Auto-zoom to show all lines
-        //         const bounds = reconstructedLinesLayer.getBounds();
-        //         if (bounds.isValid()) map.fitBounds(bounds.pad(0.2)); // Add 20% padding
-
-        //     } catch (err) {
-        //         console.error('Error loading reconstructed routes:', err);
-        //     }
-        // }
 
         // --- FETCH SURFACE CLASSIFICATION DATA ---
 
@@ -427,87 +591,118 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest
             }
         }
 
-        // async function loadSurfaceClassification() {
-        //     try {
-        //         const resp = await fetch("/api/classify");
-        //         if (!resp.ok) return; // Exit if request fails
+        async function locateByIP() {
+            const status = document.getElementById("statusText");
+            status.innerText = "Locating (approx)…";
 
-        //         const data = await resp.json();
-        //         surfaceLayer.clearLayers(); // Clear previous surface data
+            try {
+                const resp = await fetch("http://ip-api.com/json/?fields=status,lat,lon,city,regionName");
+                // const resp = await fetch("https://ip-api.com/json/?fields=status,lat,lon,city,regionName");     
 
-        //         // Create line segments for each classified surface
-        //         data.segments.forEach(seg => {
-        //             const feature = {
-        //                 type: "Feature",
-        //                 geometry: {
-        //                     type: "LineString",
-        //                     coordinates: [
-        //                         [seg.start_lon, seg.start_lat], // Start point
-        //                         [seg.end_lon, seg.end_lat]      // End point
-        //                     ]
-        //                 },
-        //                 properties: {
-        //                     surface: seg.surface,      // Surface type
-        //                     log_ratio: seg.features.log_ratio,
-        //                     p_1_3: seg.features.p_1_3, // Power in 1-3 Hz band
-        //                     p_7_15: seg.features.p_7_15 // Power in 7-15 Hz band
-        //                 }
-        //             };
+                const data = await resp.json();
 
-        //             surfaceLayer.addData(feature);
-        //         });
+                if (data.status !== "success") {
+                throw new Error("IP location failed");
+                }
 
-        //     } catch (err) {
-        //         console.error("Error loading surface classification:", err);
-        //     }
+                const { lat, lon, city, regionName } = data;
+
+                map.setView([lat, lon], 13);
+
+                L.circleMarker([lat, lon], {
+                radius: 8,
+                color: "#ff9800",
+                fillColor: "#ff9800",
+                fillOpacity: 0.7
+                })
+                .addTo(map)
+                .bindPopup(`
+                <strong>Approximate location</strong><br/>
+                ${city || ""} ${regionName || ""}
+                `)
+                .openPopup();
+
+                status.innerText = "Approximate location set";
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Location failed";
+            }
+        }
+
+        // --- TOP TOOLBAR WIRING ---
+
+        document.getElementById("runClassifyBtn").onclick = async () => {
+        const status = document.getElementById("statusText");
+        status.innerText = "Analyzing…";
+
+        try {
+            await loadSurfaceClassification();
+            status.innerText = "Classification complete";
+        } catch {
+            status.innerText = "Error";
+        }
+        };
+
+        document.getElementById("locateBtn").onclick = locateByIP;
+
+        // document.getElementById("trySampleBtn").onclick = async () => {
+        // const status = document.getElementById("statusText");
+        // status.innerText = "Loading sample…";
+
+        // try {
+        //     const resp = await fetch("/downloads/surfacesense_sample.csv");
+        //     if (!resp.ok) throw new Error("Sample download failed");
+        //     const text = await resp.text();
+
+        //     const parsed = parseCsv(text);               // we’ll add this
+        //     validateSensorCsv(parsed.columns);           // we’ll add this
+
+        //     // optional: preview points on map
+        //     // renderPreviewPoints(parsed.rows);
+
+        //     // optional: upload to backend (if your upload.js has an endpoint)
+        //     // await uploadParsedRowsToServer(parsed.rows);
+
+        //     status.innerText = `Sample loaded (${parsed.rows.length} rows)`;
+        // } catch (err) {
+        //     console.error(err);
+        //     status.innerText = "Sample load failed";
+        //     alert(err.message || "Sample load failed");
         // }
-
-
-        // // --- UI CONTROLS for map interaction ---
-        // const routeControl = L.control({position: 'topright'});
-        // routeControl.onAdd = function(map) {
-        //     // Create custom control container
-        //     const div = L.DomUtil.create('div', 'route-controls leaflet-bar');
-        //     div.innerHTML = `
-        //         <label><input type="checkbox" id="cb-show-points"> Show Points</label><br/>
-        //         <label><input type="checkbox" id="cb-offroad-only"> Off-Road Only</label><br/>
-        //         <button id="btn-reload-routes">Reload Routes</button>
-        //     `;
-        //     L.DomEvent.disableClickPropagation(div); // Prevent map clicks through control
-        //     return div;
         // };
-        // routeControl.addTo(map);
 
-        // // --- Toggle raw points visibility ---
-        // document.getElementById('cb-show-points').addEventListener('change', e => {
-        //     if (e.target.checked) map.addLayer(markerLayer);
-        //     else map.removeLayer(markerLayer);
+
+        // document.getElementById("cb-surface").addEventListener("change", e => {
+        // e.target.checked
+        //     ? map.addLayer(surfaceLayer)
+        //     : map.removeLayer(surfaceLayer);
         // });
 
-        // // --- Filter to show only off-road segments ---
-        // document.getElementById('cb-offroad-only').addEventListener('change', e => {
-        //     const offOnly = e.target.checked;
-        //     reconstructedLinesLayer.eachLayer(layer => {
-        //         const onRoad = layer.feature.properties.on_road;
-        //         if (offOnly && onRoad) {
-        //             layer.setStyle({opacity:0, interactive:false}); // Hide on-road
-        //         } else {
-        //             layer.setStyle({opacity:0.9, interactive:true}); // Show with interaction
-        //         }
-        //     });
+        // document.getElementById("cb-points").addEventListener("change", e => {
+        // e.target.checked
+        //     ? map.addLayer(markerLayer)
+        //     : map.removeLayer(markerLayer);
         // });
 
-        // // --- Reload reconstructed routes on button click ---
-        // document.getElementById('btn-reload-routes').addEventListener('click', loadReconstructedRoutes);
+        // const layersBtn = document.getElementById("layersBtn");
+        // const layersDropdown = document.getElementById("layersDropdown");
 
-        // --- Show surface classification on button click ---
-        document.getElementById("showSurfaceBtn").onclick = loadSurfaceClassification;
+        // // Toggle dropdown on click
+        // layersBtn.addEventListener("click", (e) => {
+        // e.stopPropagation(); // prevent document click from closing it
+        // layersDropdown.classList.toggle("open");
+        // });
 
-        // --- INITIAL LOAD when page first opens ---
-        // Raw points only loaded if explicitly requested (commented out by default)
-        // fetchSensorData(); // Uncomment if you want points by default
-        
-        // loadReconstructedRoutes(); // Load road segments automatically
+        // // Keep dropdown open when clicking inside
+        // layersDropdown.addEventListener("click", (e) => {
+        // e.stopPropagation();
+        // });
+
+        // // Close dropdown when clicking anywhere else
+        // document.addEventListener("click", () => {
+        // layersDropdown.classList.remove("open");
+        // });
 
     }); // End of DOMContentLoaded event listener
     </script>

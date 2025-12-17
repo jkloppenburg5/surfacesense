@@ -357,6 +357,28 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
             transform: translateX(0);
         }
 
+        /* =========================================================
+        HAMBURGER PANEL — CONTROLS
+        ========================================================= */
+
+        .panel-divider {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.12);
+            margin: 16px 0;
+        }
+
+        .panel-checkbox {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            opacity: 0.85;
+        }
+
+        .panel-checkbox input {
+            margin-right: 6px;
+        }
+
     </style>
 
 </head>
@@ -464,6 +486,22 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
             <a href="/downloads/surfacesense_template.csv" download>
                 Download blank template CSV
             </a>
+        </div>
+
+        <hr class="panel-divider" />
+
+        <div class="panel-section">
+            <h4>Map Layers</h4>
+
+            <label class="panel-checkbox">
+                <input type="checkbox" id="panelSurfaceToggle" checked />
+                Surface classification
+            </label>
+
+            <label class="panel-checkbox">
+                <input type="checkbox" id="panelPointsToggle" checked />
+                Raw GPS points
+            </label>
         </div>
 
         <div class="panel-section muted">
@@ -617,17 +655,37 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
             }
         }).addTo(map);
 
-        const overlayMaps = {
-            "Surface classification": surfaceLayer,
-            "Raw GPS points": markerLayer
-        };
+        // const overlayMaps = {
+        //     "Surface classification": surfaceLayer,
+        //     "Raw GPS points": markerLayer
+        // };
+
+        // --------------------------------------------------
+        // HAMBURGER PANEL → LEAFLET LAYER TOGGLES (STEP 5)
+        // --------------------------------------------------
+
+        document
+            .getElementById("panelSurfaceToggle")
+            .addEventListener("change", e => {
+                e.target.checked
+                    ? map.addLayer(surfaceLayer)
+                    : map.removeLayer(surfaceLayer);
+            });
+
+        document
+            .getElementById("panelPointsToggle")
+            .addEventListener("change", e => {
+                e.target.checked
+                    ? map.addLayer(markerLayer)
+                    : map.removeLayer(markerLayer);
+            });
 
 
         /// --- CONTROLS --- ///
 
 
         L.control
-            .layers(baseMaps, overlayMaps, {
+            .layers(baseMaps, null, {
                 collapsed: true,
                 position: "bottomright"
             })
@@ -777,12 +835,39 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         document.getElementById("locateBtn").onclick = locateByIP;
 
         // --- HAMBURGER MENU TOGGLE ---
+        // const hamburgerBtn = document.getElementById("hamburgerBtn");
+        // const hamburgerPanel = document.getElementById("hamburgerPanel");
+
+        // hamburgerBtn.onclick = () => {
+        //     hamburgerPanel.classList.toggle("open");
+        // };
+
         const hamburgerBtn = document.getElementById("hamburgerBtn");
         const hamburgerPanel = document.getElementById("hamburgerPanel");
 
-        hamburgerBtn.onclick = () => {
+        // Toggle panel
+        hamburgerBtn.onclick = (e) => {
+            e.stopPropagation();
             hamburgerPanel.classList.toggle("open");
         };
+
+        // Click outside closes panel
+        document.addEventListener("click", () => {
+            hamburgerPanel.classList.remove("open");
+        });
+
+        // Prevent clicks inside panel from closing it
+        hamburgerPanel.addEventListener("click", (e) => {
+            e.stopPropagation();
+        });
+
+        // ESC key closes panel
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                hamburgerPanel.classList.remove("open");
+            }
+        });
+
 
     }); // End of DOMContentLoaded event listener
     </script>

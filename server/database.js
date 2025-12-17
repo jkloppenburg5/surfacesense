@@ -106,14 +106,23 @@ function safeNum(v) {
 }
 
 // Secondary function: Retrieve sensor data with limit
-async function getSensorData(limit = 100) {
+async function getSensorData(limit = 50000) {
   try {
     // Query recent sensor readings with parameterized limit
     const result = await pool.query(`
-      SELECT id, recorded_at, latitude, longitude, altitude, x, y, z, speed
+      SELECT
+        id,
+        recorded_at,
+        latitude,
+        longitude,
+        altitude,
+        x,
+        y,
+        z,
+        speed
       FROM surface_sensor_data
-      ORDER BY recorded_at DESC        // Most recent first
-      LIMIT $1                         // Parameterized limit
+      ORDER BY recorded_at DESC
+      LIMIT $1
     `, [limit]);
     
     return result.rows;  // Return array of row objects

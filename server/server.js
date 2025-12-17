@@ -274,17 +274,6 @@ app.get('/routes/reconstructed', async (req, res) => {
 // Surface classification endpoint - uses Python ML model
 app.get('/api/classify', async (req, res) => {
   try {
-    // Query acceleration data (x,y,z) for classification
-    // const result = await pool.query(`
-    //   SELECT 
-    //     EXTRACT(EPOCH FROM recorded_at) AS t,  // Unix timestamp
-    //     x, y, z,
-    //     latitude AS lat,
-    //     longitude AS lon
-    //   FROM surface_sensor_data
-    //   WHERE x IS NOT NULL AND y IS NOT NULL AND z IS NOT NULL
-    //   ORDER BY recorded_at ASC
-    // `);
     const result = await pool.query(`
       SELECT 
         EXTRACT(EPOCH FROM recorded_at) AS t,
@@ -319,6 +308,23 @@ app.get('/api/classify', async (req, res) => {
     res.status(500).json({ error: "Classification failed" });
   }
 });
+
+app.get("/api/sensor-data", async (req, res) => {
+  try {
+    const limit = Math.min(
+      Number(req.query.limit) || 20000,
+      50000              // hard safety cap
+    );
+
+    const rows = await getSensorData(limit);
+    res.json(rows);
+
+  } catch (err) {
+    console.error("Sensor data fetch failed:", err);
+    res.status(500).json({ error: "Failed to fetch sensor data" });
+  }
+});
+
 
 // ============================================================================
 // SERVER STARTUP

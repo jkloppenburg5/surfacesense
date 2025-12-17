@@ -421,27 +421,6 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
             Locate (Approx)
             </button>
 
-            <!-- <div class="toolbar-hint">
-            <small>
-                <strong>New here?</strong>
-                Try uploading a sample file to see how surface classification works.
-            </small>
-            </div> -->
-
-        <!-- <div class="toolbar-dropdown" id="layersDropdown">
-            <button class="toolbar-btn" id="layersBtn">Layers ▾</button>
-            <div class="dropdown-content">
-                <label>
-                <input type="checkbox" id="cb-surface" checked />
-                Surface classification
-                </label>
-                <label>
-                <input type="checkbox" id="cb-points" checked />
-                Raw GPS points
-                </label>
-            </div>
-        </div> -->
-
         </div>
 
         <div class="toolbar-right">
@@ -466,7 +445,7 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
     HAMBURGER SLIDE-OUT PANEL (HTML ONLY)
     KEEP — wiring comes later
     =============================== -->
-    <div id="hamburgerPanel" aria-hidden="true">
+    <div id="hamburgerPanel">
 
         <div class="panel-header">
             <strong>Getting Started</strong>
@@ -510,8 +489,6 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
 
     </div>
 
-
-
     <div id="map"></div>
     <!-- Container where the Leaflet map will be rendered -->
 
@@ -552,22 +529,6 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
             position: "bottomleft"
         }).addTo(map);
 
-
-        // [latitude, longitude], zoom level 13
-
-        // Alternative: OpenStreetMap base layer (commented out)
-        // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        //     attribution: '&copy; OpenStreetMap contributors'
-        // }).addTo(map);
-
-        // // Use Esri satellite imagery as base map layer
-        // L.tileLayer(
-        //     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        //     {
-        //         attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
-        //         maxZoom: 19 // Maximum zoom level allowed
-        //     }
-        // ).addTo(map);
 
 
         /// --- BASEMAPS --- ///
@@ -701,26 +662,44 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         })
         .addTo(map);
 
+
         /// --- APP LOGIC --- ///
 
 
-        // FETCH RAW POINTS from server API
         async function fetchSensorData() {
-            try {
-                const response = await fetch('/api/sensor-data');
-                const data = await response.json();
+        try {
+            const response = await fetch("/api/sensor-data?limit=20000");
 
-                markerLayer.clearLayers(); // Remove previous points
-
-                // Create marker for each sensor reading
-                data.forEach(d => {
-                    L.marker([d.latitude, d.longitude])
-                    .bindPopup(`Time: ${d.recorded_at}<br>Alt: ${d.altitude}<br>Speed: ${d.speed}`)
-                    .addTo(markerLayer);
-                });
-            } catch (err) {
-                console.error('Error fetching sensor data:', err);
+            if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
             }
+
+            const data = await response.json();
+
+            if (!Array.isArray(data)) {
+            console.error("Expected array, got:", data);
+            return;
+            }
+
+            markerLayer.clearLayers();
+
+            data.forEach(d => {
+            if (!d.latitude || !d.longitude) return;
+
+            L.circleMarker([d.latitude, d.longitude], {
+                radius: 2,
+                weight: 0,
+                fillColor: "#00c8ff",
+                fillOpacity: 0.5,
+                interactive: false
+            }).addTo(markerLayer);
+            });
+
+            console.log(`Rendered ${data.length} raw GPS points`);
+
+        } catch (err) {
+            console.error("Error fetching sensor data:", err);
+        }
         }
 
         // --- FETCH SURFACE CLASSIFICATION DATA ---
@@ -834,14 +813,6 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
 
         document.getElementById("locateBtn").onclick = locateByIP;
 
-        // --- HAMBURGER MENU TOGGLE ---
-        // const hamburgerBtn = document.getElementById("hamburgerBtn");
-        // const hamburgerPanel = document.getElementById("hamburgerPanel");
-
-        // hamburgerBtn.onclick = () => {
-        //     hamburgerPanel.classList.toggle("open");
-        // };
-
         const hamburgerBtn = document.getElementById("hamburgerBtn");
         const hamburgerPanel = document.getElementById("hamburgerPanel");
 
@@ -868,6 +839,16 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
             }
         });
 
+        document
+            .getElementById("panelPointsToggle")
+            .addEventListener("change", (e) => {
+                if (e.target.checked) {
+                fetchSensorData();
+                map.addLayer(markerLayer);
+                } else {
+                map.removeLayer(markerLayer);
+                }
+            });
 
     }); // End of DOMContentLoaded event listener
     </script>

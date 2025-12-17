@@ -18,6 +18,30 @@ At a high level, it answers:
 
 ---
 
+## Downloadable CSV Files
+
+SurfaceSense provides two example files to help you get started with uploads:
+
+### Sample CSV
+
+A real SensorLogger export containing GPS and accelerometer data.
+
+- Demonstrates the expected file structure and column names  
+- Useful for first-time users who want to immediately see surface classification in action  
+- Can be uploaded directly without modification  
+
+### Template CSV
+
+An empty, header-only template matching SurfaceSense’s required format.
+
+- Intended for users generating their own sensor data  
+- Ensures compatibility with the ingestion and granularity checks  
+- Helpful when exporting from custom pipelines or alternative logging tools  
+
+Both files are available from the application interface and can be used to validate your setup before uploading your own rides.
+
+---
+
 ## Architecture Overview
 
 ```

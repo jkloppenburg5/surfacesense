@@ -30,35 +30,6 @@ def band_power(freqs, spectrum, f_lo, f_hi):
     # return np.mean(spectrum[idx])
 
 
-# def compute_log_ratio(window):
-#     """
-#     window: (N,3) accelerometer window
-#     """
-#     x, y, z = window[:, 0], window[:, 1], window[:, 2]
-
-#     # Remove DC (orientation + gravity proxy)
-#     x -= x.mean()
-#     y -= y.mean()
-#     z -= z.mean()
-
-#     mag = np.sqrt(x*x + y*y + z*z)
-#     mag -= mag.mean()
-
-#     yf = np.abs(rfft(mag))
-#     xf = rfftfreq(len(mag), 1.0 / SAMPLE_RATE)
-
-#     p13 = band_power(xf, yf, 1.0, 3.0)
-#     p715 = band_power(xf, yf, 7.0, 15.0)
-
-#     log_ratio = np.log(p715 + EPS) - np.log(p13 + EPS)
-
-#     return float(log_ratio), {
-#         "p_1_3": float(p13),
-#         "p_7_15": float(p715),
-#         "log_ratio": float(log_ratio)
-#     }
-
-
 def compute_log_ratio(window):
     """
     window: (N,3) accelerometer window

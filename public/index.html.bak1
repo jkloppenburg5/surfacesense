@@ -37,86 +37,72 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
     />
     <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script> -->
 
-
-
     <style>
-        /* =========================================================
-        A. GLOBAL RESET & PAGE BASELINE
-        =========================================================
-        KEEP — required for full-screen Leaflet layout
-        */
+        /* Internal CSS styles */
 
-        html,
-        body {
-        height: 100%;
-        margin: 0;
-        }
-
-
-        /* =========================================================
-        B. TOP TOOLBAR (PRIMARY NAV)
-        =========================================================
-        KEEP — this is your canonical toolbar
-        NOTE: Absolute positioning is OK for now, but fragile.
-        */
-
-        #topToolbar {
-        position: absolute;          /* KEEP (will revisit later) */
+        /* #topToolbar {
+        position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        height: 52px;                /* SINGLE SOURCE OF TRUTH */
-
-        /* Visual theme */
-        background: linear-gradient(
-            180deg,
-            rgba(40, 60, 90, 0.95),
-            rgba(25, 35, 55, 0.95)
-        );
-
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        height: 52px;
+        background: rgba(20, 20, 30, 0.9);
         color: white;
-
         display: flex;
         align-items: center;
-        padding: 0 14px;
+        padding: 0 12px;
         z-index: 1000;
+        font-family: system-ui, sans-serif;
+        } */
 
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-
-        /* LEGACY THEME OPTION — DELETE LATER if unused
         #topToolbar {
-        background: rgba(20, 20, 30, 0.9);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 52px;
+
+            /* Color + transparency */
+            background: linear-gradient(
+                180deg,
+                rgba(40, 60, 90, 0.90),
+                rgba(25, 35, 55, 0.90)
+            );
+
+            /* background: linear-gradient(
+                180deg,
+                rgba(120, 70, 190, 0.85),
+                rgba(90, 40, 160, 0.85)
+            ); */
+
+            /* Glass effect */
+            /* backdrop-filter: blur(8px); */
+            /* -webkit-backdrop-filter: blur(8px); */
+
+            /* Subtle depth */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            z-index: 1000;
+
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-        */
 
 
-        /* =========================================================
-        C. MAP CONTAINER
-        =========================================================
-        KEEP — BUT THIS IS A KNOWN RISK AREA
-        NOTE: This will change in the next step (Step 0)
-        */
-
+        /* #map {
+        height: calc(100vh - 52px);
+        margin-top: 52px;
+        } */
         #map {
-        position: absolute;
-
-        /* CRITICAL: reserve space for toolbar */
-        /* top: 52px;              must match #topToolbar height */
-        top: 0;
-
-        left: 0;
-        right: 0;
-        bottom: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
-
-
-        /* =========================================================
-        D. TOOLBAR LAYOUT REGIONS
-        =========================================================
-        KEEP — structural flex layout
-        */
 
         .toolbar-left,
         .toolbar-center,
@@ -137,16 +123,13 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         flex: 1;
         justify-content: flex-end;
         font-size: 13px;
-        opacity: 0.75;
+        opacity: 0.8;
         }
 
-
-        /* =========================================================
-        E. BRANDING
-        =========================================================
-        KEEP
-        */
-
+        /* .app-title {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        } */
         .app-title {
         font-weight: 500;
         letter-spacing: 0.6px;
@@ -155,12 +138,19 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         }
 
 
-        /* =========================================================
-        F. BUTTONS (CORE INTERACTION)
-        =========================================================
-        KEEP — reusable, consistent
-        */
+        /* .toolbar-btn {
+        background: rgba(255,255,255,0.1);
+        border: none;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        }
 
+        .toolbar-btn:hover {
+        background: rgba(255,255,255,0.2);
+        } */
         .toolbar-btn {
         background: rgba(255, 255, 255, 0.12);
         border: none;
@@ -185,72 +175,91 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         transform: translateY(1px);
         }
 
-
-        /* PRIMARY ACTION BUTTON */
+        /* .toolbar-btn.primary {
+        background: #3fa9f5;
+        color: #08121f;
+        } */
         .toolbar-btn.primary {
-        background: linear-gradient(
-            135deg,
-            #4fc3f7,
-            #2196f3
-        );
-        color: #071a2b;
-        font-weight: 500;
+            background: linear-gradient(
+                135deg,
+                #4fc3f7,
+                #2196f3
+            );
+            color: #071a2b;
+            font-weight: 500;
         }
 
         .toolbar-btn.primary:hover {
-        background: linear-gradient(
-            135deg,
-            #64ccff,
-            #42a5f5
-        );
+            background: linear-gradient(
+                135deg,
+                #64ccff,
+                #42a5f5
+            );
         }
 
-        /* LEGACY PRIMARY STYLE — DELETE LATER
-        .toolbar-btn.primary {
-        background: #3fa9f5;
+        .toolbar-btn.primary:hover {
+            background: #5bb7ff;
         }
-        */
 
+        .toolbar-dropdown {
+            position: relative;
+        }
 
-        /* =========================================================
-        G. LINKS (DOWNLOADS, SECONDARY ACTIONS)
-        =========================================================
-        KEEP
-        */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 36px;
+            right: 0;
+            background: rgba(30,30,40,0.95);
+            padding: 10px;
+            border-radius: 6px;
+            min-width: 180px;
+        }
+
+        .toolbar-dropdown.open .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .toolbar-right {
+            flex: 1;
+            justify-content: flex-end;
+            font-size: 13px;
+            opacity: 0.75;
+        }
+
+        #statusText {
+            transition: opacity 0.2s ease;
+        }
 
         .toolbar-link {
-        color: white;
-        text-decoration: none;
-        font-size: 14px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        background: rgba(255,255,255,0.10);
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.10);
         }
-
-        .toolbar-link:hover {
-        background: rgba(255,255,255,0.18);
-        }
-
-
-        /* =========================================================
-        H. CONTEXTUAL HELP / MICROCOPY
-        =========================================================
-        KEEP — but likely moving into hamburger menu
-        */
+        .toolbar-link:hover { background: rgba(255,255,255,0.18); }
 
         .upload-help {
-        font-size: 12px;
-        opacity: 0.75;
-        margin-left: 6px;
+            font-size: 12px;
+            opacity: 0.75;
+            margin-left: 6px;
         }
 
         .upload-help a {
-        color: #cfe9ff;
-        text-decoration: none;
+            color: #cfe9ff;
+            text-decoration: none;
         }
 
         .upload-help a:hover {
-        text-decoration: underline;
+            text-decoration: underline;
         }
 
         .toolbar-hint {
@@ -265,35 +274,12 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
         opacity: 0.9;
         }
 
-
-        /* =========================================================
-        I. DROPDOWN / EXPERIMENTAL UI
-        =========================================================
-        KEEP COMMENTED — useful reference, not active
-        */
-
-        /*
-        .toolbar-dropdown {
-        position: relative;
+        html, body {
+        height: 100%;
+        margin: 0;
         }
 
-        .dropdown-content {
-        display: none;
-        position: absolute;
-        top: 36px;
-        right: 0;
-        background: rgba(30,30,40,0.95);
-        padding: 10px;
-        border-radius: 6px;
-        min-width: 180px;
-        }
-
-        .toolbar-dropdown.open .dropdown-content {
-        display: block;
-        }
-        */
     </style>
-
 </head>
 <body>
     <!-- Main page content begins -->
@@ -304,81 +290,63 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
     <!-- Container to display user's geographic location  -->
 
     <div id="topToolbar">
-        <div class="toolbar-left">
-            <span class="app-title">Surfacesense</span>
-        </div>
+    <div class="toolbar-left">
+        <span class="app-title">Surfacesense</span>
+    </div>
 
-        <div class="toolbar-center">
-            <label class="toolbar-btn">
-            Upload
-            <input type="file" id="fileInput" accept=".csv,.txt" hidden />
-            </label>
+    <div class="toolbar-center">
+        <label class="toolbar-btn">
+        Upload
+        <input type="file" id="fileInput" accept=".csv,.txt" hidden />
+        </label>
 
-            <div class="upload-help">
-                <small>
-                Need a file?
-                <a href="/downloads/surfacesense_sample.csv" download>Sample</a> ·
-                <a href="/downloads/surfacesense_template.csv" download>Template</a>
-                </small>
-            </div>
-
-            <!-- <button id="trySampleBtn" class="toolbar-btn">
-            Try Sample
-            </button> -->
-
-            <button id="runClassifyBtn" class="toolbar-btn primary">
-            Analyze Surfaces
-            </button>
-
-            <button id="locateBtn" class="toolbar-btn">
-            Locate (Approx)
-            </button>
-
-            <!-- <div class="toolbar-hint">
+        <div class="upload-help">
             <small>
-                <strong>New here?</strong>
-                Try uploading a sample file to see how surface classification works.
+            Need a file?
+            <a href="/downloads/surfacesense_sample.csv" download>Sample</a> ·
+            <a href="/downloads/surfacesense_template.csv" download>Template</a>
             </small>
-            </div> -->
-
-        <!-- <div class="toolbar-dropdown" id="layersDropdown">
-            <button class="toolbar-btn" id="layersBtn">Layers ▾</button>
-            <div class="dropdown-content">
-                <label>
-                <input type="checkbox" id="cb-surface" checked />
-                Surface classification
-                </label>
-                <label>
-                <input type="checkbox" id="cb-points" checked />
-                Raw GPS points
-                </label>
-            </div>
-        </div> -->
-
         </div>
 
-        <div class="toolbar-right">
+        <!-- <button id="trySampleBtn" class="toolbar-btn">
+        Try Sample
+        </button> -->
 
-            <!-- Hamburger menu button (Step 1: visual only) -->
-            <button id="hamburgerBtn"
-                    class="toolbar-btn hamburger-btn"
-                    aria-label="Menu"
-                    title="Menu">
-                ☰
-            </button>
+        <button id="runClassifyBtn" class="toolbar-btn primary">
+        Analyze Surfaces
+        </button>
 
-            <span id="statusText">Idle</span>
+        <button id="locateBtn" class="toolbar-btn">
+        Locate (Approx)
+        </button>
+
+        <div class="toolbar-hint">
+        <small>
+            <strong>New here?</strong>
+            Try a sample ride to see how surface classification works.
+        </small>
         </div>
 
-        <!-- <div class="toolbar-right">
-            <span id="statusText">Idle</span>
-        </div> -->
+    <!-- <div class="toolbar-dropdown" id="layersDropdown">
+        <button class="toolbar-btn" id="layersBtn">Layers ▾</button>
+        <div class="dropdown-content">
+            <label>
+            <input type="checkbox" id="cb-surface" checked />
+            Surface classification
+            </label>
+            <label>
+            <input type="checkbox" id="cb-points" checked />
+            Raw GPS points
+            </label>
+        </div>
+    </div> -->
 
     </div>
 
-
-
-
+    <div class="toolbar-right">
+        <span id="statusText">Idle</span>
+    </div>
+    </div>
 
     <div id="map"></div>
     <!-- Container where the Leaflet map will be rendered -->
@@ -397,18 +365,9 @@ TECH: Leaflet.js, Vanilla JS, GeoJSON, XMLHttpRequest -->
 
         // Create map instance in 'map' div, centered on Madison, WI coordinates
         // const map = L.map('map').setView([43.0731, -89.4012], 13);
-
-        // Create map instance in 'map' div, centered on Madison, WI
         const map = L.map('map', {
         zoomControl: false
         }).setView([43.0731, -89.4012], 13);
-
-        // 🔧 Required when map is rendered under an overlay toolbar
-        // Ensures Leaflet recalculates container size correctly
-        setTimeout(() => {
-        map.invalidateSize();
-        }, 0);
-
 
         L.control.zoom({
             position: "bottomleft"
